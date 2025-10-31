@@ -1,0 +1,9 @@
+app = "scoutzos-platform"
+
+[build]
+  dockerfile = "Dockerfile"
+
+# Environment variables can be configured here or via Fly secrets
+[env]
+  # Set to true to unbuffer Python output
+  PYTHONUNBUFFERED = "1"
