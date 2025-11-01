@@ -1,8 +1,8 @@
 app = "scoutzos-platform"
 
 [build]
-  context = "./scoutzos_deploy"
-  dockerfile = "Dockerfile"
+   context = "."
+    dockerfile = "./scoutzos_deploy/Dockerfile"
 
 [env]
   PYTHONUNBUFFERED = "1"
