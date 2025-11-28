@@ -11,11 +11,17 @@ interface AnalysisTabProps {
     dealData?: Deal;
 }
 
+interface AnalysisError {
+    error: string;
+    message?: string;
+    missingFields?: string[];
+}
+
 export default function AnalysisTab({ dealId, dealData }: AnalysisTabProps) {
     const [analysis, setAnalysis] = useState<UnderwritingResult | null>(null);
     const [loading, setLoading] = useState(true);
     const [analyzing, setAnalyzing] = useState(false);
-    const [error, setError] = useState<string | null>(null);
+    const [error, setError] = useState<AnalysisError | null>(null);
     const [isEditing, setIsEditing] = useState(false);
     const [assumptions, setAssumptions] = useState<UnderwritingAssumptions>(DEFAULT_ASSUMPTIONS);
 
@@ -26,21 +32,23 @@ export default function AnalysisTab({ dealId, dealData }: AnalysisTabProps) {
     const fetchAnalysis = async () => {
         try {
             setLoading(true);
+            setError(null);
             const response = await fetch(`/api/deals/${dealId}/analyze`);
             if (response.ok) {
                 const data = await response.json();
                 if (data.metrics) {
+                    // Existing metrics found, run analysis to get full result
                     runAnalysis(assumptions);
                 } else {
                     runAnalysis(assumptions);
                 }
             } else {
+                // No existing analysis, run fresh analysis
                 runAnalysis(assumptions);
             }
         } catch (err) {
             console.error(err);
-            setError('Failed to load analysis');
-        } finally {
+            setError({ error: 'Failed to load analysis', message: 'Could not connect to the server.' });
             setLoading(false);
         }
     };
@@ -48,20 +56,30 @@ export default function AnalysisTab({ dealId, dealData }: AnalysisTabProps) {
     const runAnalysis = async (currentAssumptions: UnderwritingAssumptions) => {
         try {
             setAnalyzing(true);
+            setError(null);
             const response = await fetch(`/api/deals/${dealId}/analyze`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ assumptions: currentAssumptions }),
             });
 
-            if (!response.ok) throw new Error('Analysis failed');
-
             const data = await response.json();
+
+            if (!response.ok) {
+                // Handle structured error response from API
+                setError({
+                    error: data.error || 'Analysis failed',
+                    message: data.message,
+                    missingFields: data.missingFields
+                });
+                return;
+            }
+
             setAnalysis(data.analysis);
             setAssumptions(data.analysis.assumptions);
         } catch (err) {
             console.error(err);
-            setError('Failed to run analysis');
+            setError({ error: 'Failed to run analysis', message: 'An unexpected error occurred. Please try again.' });
         } finally {
             setAnalyzing(false);
             setLoading(false);
@@ -77,7 +95,41 @@ export default function AnalysisTab({ dealId, dealData }: AnalysisTabProps) {
     };
 
     if (loading) return <div className="p-8 text-center">Loading analysis...</div>;
-    if (error) return <div className="p-8 text-center text-red-600">{error}</div>;
+    if (error) return (
+        <div className="p-8">
+            <div className="bg-amber-50 border border-amber-200 rounded-lg p-6 max-w-2xl mx-auto">
+                <div className="flex items-start">
+                    <svg className="h-6 w-6 text-amber-500 mr-3 mt-0.5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                    </svg>
+                    <div>
+                        <h3 className="text-lg font-semibold text-amber-800">{error.error}</h3>
+                        {error.message && (
+                            <p className="mt-2 text-amber-700">{error.message}</p>
+                        )}
+                        {error.missingFields && error.missingFields.length > 0 && (
+                            <div className="mt-3">
+                                <p className="text-sm font-medium text-amber-800">Missing fields:</p>
+                                <ul className="mt-1 list-disc list-inside text-sm text-amber-700">
+                                    {error.missingFields.map((field, idx) => (
+                                        <li key={idx}>{field}</li>
+                                    ))}
+                                </ul>
+                            </div>
+                        )}
+                        <div className="mt-4">
+                            <a
+                                href={`/deals/${dealId}/edit`}
+                                className="inline-flex items-center px-4 py-2 bg-amber-600 text-white text-sm font-medium rounded-md hover:bg-amber-700 transition-colors"
+                            >
+                                Edit Deal to Add Missing Data
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    );
     if (!analysis) return <div className="p-8 text-center"><button onClick={() => runAnalysis(assumptions)} className="text-blue-600 hover:underline">Run Analysis</button></div>;
 
     const insights = generateInsights(analysis);

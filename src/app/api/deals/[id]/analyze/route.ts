@@ -17,8 +17,20 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
 
         const { data: deal, error: fetchError } = await supabaseAdmin.from('deals').select('*').eq('id', id).eq('tenant_id', tenantId).single();
         if (fetchError || !deal) return NextResponse.json({ error: 'Deal not found' }, { status: 404 });
-        if (!deal.list_price) return NextResponse.json({ error: 'Deal missing required field: list_price' }, { status: 400 });
-        if (!deal.estimated_rent) return NextResponse.json({ error: 'Deal missing required field: estimated_rent' }, { status: 400 });
+
+        // Check for required fields and return helpful error messages
+        const missingFields: string[] = [];
+        if (!deal.list_price) missingFields.push('list_price');
+        if (!deal.estimated_rent) missingFields.push('estimated_rent (monthly rent estimate)');
+
+        if (missingFields.length > 0) {
+            return NextResponse.json({
+                error: 'Missing required fields for analysis',
+                missingFields,
+                message: `This deal is missing: ${missingFields.join(', ')}. Please edit the deal to add these values before running analysis.`,
+                deal_id: id
+            }, { status: 400 });
+        }
 
         const analysis: UnderwritingResult = analyzeDeal({
             purchasePrice: deal.list_price,

@@ -203,6 +203,10 @@ export async function searchByCity(
  * Convert a Zillow property to RawDealInput for database insertion
  */
 export function zillowPropertyToDeal(prop: ZillowProperty): RawDealInput {
+  console.log('=== RAW ZILLOW PROPERTY ===');
+  console.log(JSON.stringify(prop, null, 2));
+  console.log('=== END RAW PROPERTY ===');
+
   return {
     address: prop.address,
     city: prop.city,
