@@ -1,6 +1,6 @@
 // src/app/api/scrape-zillow/route.ts
 import { NextRequest, NextResponse } from "next/server";
-import { searchByCity, searchProperties, zillowPropertyToDeal, ZillowSearchParams, ZillowProperty } from "@/lib/zillowScraper";
+import { searchByCity, searchProperties, zillowPropertyToDeal, enrichPropertiesWithDetails, ZillowSearchParams, ZillowProperty } from "@/lib/zillowScraper";
 import { upsertDeal } from "@/lib/dealsIngest";
 
 export type ScrapeZillowRequest = {
@@ -140,8 +140,12 @@ export async function POST(request: NextRequest) {
       searchResults = await searchProperties(params);
     }
 
+    // Enrich properties with detailed info (including year_built)
+    // This makes additional API calls to get full property details
+    const enrichedProps = await enrichPropertiesWithDetails(searchResults.props);
+
     // Transform properties to extended response format
-    const properties = searchResults.props.map(zillowPropertyToResponse);
+    const properties = enrichedProps.map(zillowPropertyToResponse);
 
     // Save to database if requested (default: true)
     const saveToDb = body.saveToDb !== false;
@@ -149,7 +153,7 @@ export async function POST(request: NextRequest) {
     const errors: string[] = [];
 
     if (saveToDb) {
-      for (const prop of searchResults.props) {
+      for (const prop of enrichedProps) {
         try {
           await upsertDeal(zillowPropertyToDeal(prop));
           savedCount++;
@@ -234,13 +238,16 @@ export async function GET(request: NextRequest) {
       searchResults = await searchProperties({ location: location!, ...options });
     }
 
-    const properties = searchResults.props.map(zillowPropertyToResponse);
+    // Enrich properties with detailed info (including year_built)
+    const enrichedProps = await enrichPropertiesWithDetails(searchResults.props);
+
+    const properties = enrichedProps.map(zillowPropertyToResponse);
 
     let savedCount = 0;
     const errors: string[] = [];
 
     if (saveToDb) {
-      for (const prop of searchResults.props) {
+      for (const prop of enrichedProps) {
         try {
           await upsertDeal(zillowPropertyToDeal(prop));
           savedCount++;

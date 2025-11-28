@@ -200,6 +200,79 @@ export async function searchByCity(
 }
 
 /**
+ * Fetch detailed property info including year_built using zpid
+ */
+export async function getPropertyDetails(zpid: number): Promise<Partial<ZillowProperty> | null> {
+  try {
+    const url = `${BASE_URL}/property?zpid=${zpid}`;
+    console.log("[Zillow API] Fetching property details for zpid:", zpid);
+
+    const response = await fetch(url, {
+      method: "GET",
+      headers: {
+        "x-rapidapi-key": RAPIDAPI_KEY,
+        "x-rapidapi-host": RAPIDAPI_HOST,
+      },
+    });
+
+    if (!response.ok) {
+      console.warn(`[Zillow API] Property details failed for zpid ${zpid}:`, response.status);
+      return null;
+    }
+
+    const data = await response.json();
+    console.log("[Zillow API] Property details response keys:", Object.keys(data));
+
+    // Extract year built from various possible locations
+    const yearBuilt = data.yearBuilt || data.resoFacts?.yearBuilt || data.buildingYearBuilt || null;
+
+    return {
+      yearBuilt: yearBuilt as number | null,
+      // Also grab any other useful details that might be missing from search
+      bedrooms: data.bedrooms || data.resoFacts?.bedrooms,
+      bathrooms: data.bathrooms || data.resoFacts?.bathrooms,
+      livingArea: data.livingArea || data.resoFacts?.livingArea,
+      lotAreaValue: data.lotSize || data.resoFacts?.lotSize,
+      description: data.description,
+    };
+  } catch (error) {
+    console.warn(`[Zillow API] Error fetching property details for zpid ${zpid}:`, error);
+    return null;
+  }
+}
+
+/**
+ * Enrich properties with detailed info (including year_built)
+ * This makes additional API calls so use sparingly
+ */
+export async function enrichPropertiesWithDetails(
+  props: ZillowProperty[]
+): Promise<ZillowProperty[]> {
+  const enrichedProps: ZillowProperty[] = [];
+
+  for (const prop of props) {
+    if (prop.zpid && !prop.yearBuilt) {
+      const details = await getPropertyDetails(prop.zpid);
+      if (details) {
+        enrichedProps.push({
+          ...prop,
+          yearBuilt: details.yearBuilt ?? prop.yearBuilt,
+          bedrooms: details.bedrooms ?? prop.bedrooms,
+          bathrooms: details.bathrooms ?? prop.bathrooms,
+          livingArea: details.livingArea ?? prop.livingArea,
+          lotAreaValue: details.lotAreaValue ?? prop.lotAreaValue,
+          description: details.description ?? prop.description,
+        });
+        continue;
+      }
+    }
+    enrichedProps.push(prop);
+  }
+
+  return enrichedProps;
+}
+
+/**
  * Convert a Zillow property to RawDealInput for database insertion
  */
 export function zillowPropertyToDeal(prop: ZillowProperty): RawDealInput {
