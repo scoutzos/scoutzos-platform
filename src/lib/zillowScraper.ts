@@ -1,9 +1,9 @@
 // src/lib/zillowScraper.ts
 import { RawDealInput } from "./dealsIngest";
 
-const RAPIDAPI_KEY = "065d734bc6mshbae103ca604ee3ep11a7b9jsnd2ff3a62e8bd";
-const RAPIDAPI_HOST = "zillow-com1.p.rapidapi.com";
-const BASE_URL = "https://zillow-com1.p.rapidapi.com";
+const RAPIDAPI_KEY = process.env.RAPIDAPI_KEY || "065d734bc6mshbae103ca604ee3ep11a7b9jsnd2ff3a62e8bd";
+const RAPIDAPI_HOST = "zillow56.p.rapidapi.com";
+const BASE_URL = "https://zillow56.p.rapidapi.com";
 
 export type ZillowSearchParams = {
   location: string; // City, State (e.g., "Atlanta, GA")
@@ -52,16 +52,22 @@ export type ZillowSearchResponse = {
 };
 
 /**
- * Search properties using the Zillow /propertyExtendedSearch endpoint
+ * Search properties using the Zillow56 /search endpoint
  */
 export async function searchProperties(
   params: ZillowSearchParams
 ): Promise<ZillowSearchResponse> {
   const queryParams = new URLSearchParams();
 
-  queryParams.append("location", params.location);
+  // Required parameters
+  queryParams.append("location", params.location.toLowerCase());
+  queryParams.append("output", "json");
+  queryParams.append("status", params.status || "forSale");
+  queryParams.append("sortSelection", params.sort || "priorityscore");
+  queryParams.append("listing_type", "by_agent");
+  queryParams.append("doz", "any");
 
-  if (params.status) queryParams.append("status_type", params.status);
+  // Optional filters
   if (params.home_type) queryParams.append("home_type", params.home_type);
   if (params.minPrice) queryParams.append("minPrice", params.minPrice.toString());
   if (params.maxPrice) queryParams.append("maxPrice", params.maxPrice.toString());
@@ -72,9 +78,10 @@ export async function searchProperties(
   if (params.sqftMin) queryParams.append("sqftMin", params.sqftMin.toString());
   if (params.sqftMax) queryParams.append("sqftMax", params.sqftMax.toString());
   if (params.page) queryParams.append("page", params.page.toString());
-  if (params.sort) queryParams.append("sort", params.sort);
 
-  const url = `${BASE_URL}/propertyExtendedSearch?${queryParams.toString()}`;
+  const url = `${BASE_URL}/search?${queryParams.toString()}`;
+
+  console.log("[Zillow API] Requesting:", url);
 
   const response = await fetch(url, {
     method: "GET",
@@ -86,39 +93,67 @@ export async function searchProperties(
 
   if (!response.ok) {
     const errorText = await response.text();
+    console.error("[Zillow API] Error:", response.status, errorText);
     throw new Error(`Zillow API error: ${response.status} - ${errorText}`);
   }
 
   const data = await response.json();
 
+  console.log("[Zillow API] Response keys:", Object.keys(data));
+
+  // Handle the Zillow56 API response structure
+  // The API returns results in data.results or data.props or as a direct array
+  let rawProps: Record<string, unknown>[] = [];
+
+  if (Array.isArray(data)) {
+    rawProps = data;
+  } else if (data.results && Array.isArray(data.results)) {
+    rawProps = data.results;
+  } else if (data.props && Array.isArray(data.props)) {
+    rawProps = data.props;
+  } else if (data.searchResults?.listResults) {
+    rawProps = data.searchResults.listResults;
+  } else if (data.cat1?.searchResults?.listResults) {
+    rawProps = data.cat1.searchResults.listResults;
+  }
+
+  console.log("[Zillow API] Found", rawProps.length, "properties");
+
   // Transform the API response to our expected format
-  const props: ZillowProperty[] = (data.props || []).map((prop: Record<string, unknown>) => ({
-    zpid: prop.zpid,
-    address: prop.address || prop.streetAddress || "",
-    city: prop.city || "",
-    state: prop.state || "",
-    zipcode: prop.zipcode || "",
-    price: prop.price || 0,
-    bedrooms: prop.bedrooms || 0,
-    bathrooms: prop.bathrooms || 0,
-    livingArea: prop.livingArea || 0,
-    lotAreaValue: prop.lotAreaValue || 0,
-    lotAreaUnit: prop.lotAreaUnit || "sqft",
-    homeType: prop.homeType || "",
-    homeStatus: prop.homeStatus || "",
-    daysOnZillow: prop.daysOnZillow || 0,
-    rentZestimate: prop.rentZestimate || null,
-    zestimate: prop.zestimate || null,
-    imgSrc: prop.imgSrc || "",
-    detailUrl: prop.detailUrl || `https://www.zillow.com/homedetails/${prop.zpid}_zpid/`,
-    latitude: prop.latitude || 0,
-    longitude: prop.longitude || 0,
-  }));
+  const props: ZillowProperty[] = rawProps.map((prop: Record<string, unknown>) => {
+    // Handle nested address object
+    const addressObj = prop.address as Record<string, unknown> | undefined;
+
+    return {
+      zpid: (prop.zpid || prop.id || prop.propertyId || 0) as number,
+      address: (prop.streetAddress || prop.address || addressObj?.streetAddress || "") as string,
+      city: (prop.city || prop.addressCity || addressObj?.city || "") as string,
+      state: (prop.state || prop.addressState || addressObj?.state || "") as string,
+      zipcode: (prop.zipcode || prop.addressZipcode || addressObj?.zipcode || "") as string,
+      price: (prop.price || prop.unformattedPrice || prop.listPrice || 0) as number,
+      bedrooms: (prop.bedrooms || prop.beds || 0) as number,
+      bathrooms: (prop.bathrooms || prop.baths || 0) as number,
+      livingArea: (prop.livingArea || prop.area || prop.livingAreaValue || 0) as number,
+      lotAreaValue: (prop.lotAreaValue || prop.lotSize || 0) as number,
+      lotAreaUnit: (prop.lotAreaUnit || "sqft") as string,
+      homeType: (prop.homeType || prop.propertyType || prop.homeTypeDimension || "") as string,
+      homeStatus: (prop.homeStatus || prop.statusType || prop.listingStatus || "") as string,
+      daysOnZillow: (prop.daysOnZillow || prop.timeOnZillow || 0) as number,
+      rentZestimate: (prop.rentZestimate || null) as number | null,
+      zestimate: (prop.zestimate || null) as number | null,
+      imgSrc: (prop.imgSrc || prop.image || prop.hiResImageLink || prop.thumbnailUrl || "") as string,
+      detailUrl: (prop.detailUrl || prop.url || prop.hdpUrl || `https://www.zillow.com/homedetails/${prop.zpid || prop.id}_zpid/`) as string,
+      latitude: (prop.latitude || (prop.latLong as Record<string, unknown>)?.latitude || 0) as number,
+      longitude: (prop.longitude || (prop.latLong as Record<string, unknown>)?.longitude || 0) as number,
+    };
+  });
+
+  const totalResults = (data.totalResultCount || data.totalPages * 40 || props.length) as number;
 
   return {
-    totalResultCount: data.totalResultCount || 0,
-    resultsPerPage: data.resultsPerPage || 40,
-    totalPages: data.totalPages || 1,
+    totalResultCount: totalResults,
+    resultsPerPage: (data.resultsPerPage || 40) as number,
+    totalPages: (data.totalPages || Math.ceil(totalResults / 40) || 1) as number,
     props,
   };
 }
