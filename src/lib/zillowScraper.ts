@@ -216,6 +216,7 @@ export function zillowPropertyToDeal(prop: ZillowProperty): RawDealInput {
     address: prop.address,
     city: prop.city,
     state: prop.state,
+    zipcode: prop.zipcode,
     list_price: prop.price,
     rent_estimate: bestEstimate,
     zillow_rent_estimate: zillowRentEstimate,
@@ -224,6 +225,17 @@ export function zillowPropertyToDeal(prop: ZillowProperty): RawDealInput {
     source_url: prop.detailUrl,
     is_off_market: prop.homeStatus === "OFF_MARKET",
     status: prop.homeStatus === "FOR_SALE" ? "active" : prop.homeStatus.toLowerCase(),
+    // Property details
+    beds: prop.bedrooms || undefined,
+    baths: prop.bathrooms || undefined,
+    sqft: prop.livingArea || undefined,
+    lot_size: prop.lotAreaValue || undefined,
+    year_built: prop.yearBuilt,
+    property_type: prop.homeType || undefined,
+    days_on_market: prop.daysOnZillow || undefined,
+    photos: prop.photos?.length > 0 ? prop.photos : undefined,
+    latitude: prop.latitude || undefined,
+    longitude: prop.longitude || undefined,
   };
 }
 

@@ -5,6 +5,7 @@ export type RawDealInput = {
   address: string;
   city: string;
   state: string;
+  zipcode?: string;
   list_price: number;
   rent_estimate?: number | null;
   zillow_rent_estimate?: number | null;
@@ -14,6 +15,17 @@ export type RawDealInput = {
   source_url?: string | null;
   is_off_market?: boolean;
   status?: string;
+  // Property details
+  beds?: number;
+  baths?: number;
+  sqft?: number;
+  lot_size?: number;
+  year_built?: number | null;
+  property_type?: string;
+  days_on_market?: number;
+  photos?: string[];
+  latitude?: number;
+  longitude?: number;
 };
 
 /**
@@ -26,7 +38,7 @@ export async function upsertDeal(input: RawDealInput) {
     address_line1: input.address.trim(),
     city: input.city.trim(),
     state: input.state.trim().toUpperCase(), // States should be uppercase (e.g., "FL")
-    zip: "", // Required field, but we don't have it from Zillow search results
+    zip: input.zipcode || "",
     list_price: input.list_price,
     estimated_rent: input.rent_estimate ?? null,
     zillow_rent_estimate: input.zillow_rent_estimate ?? null,
@@ -35,6 +47,17 @@ export async function upsertDeal(input: RawDealInput) {
     source_url: input.source_url ?? input.url ?? null,
     scraped_at: new Date().toISOString(),
     status: "new" as const, // Use valid DealStatus enum value
+    // Property details
+    beds: input.beds ?? null,
+    baths: input.baths ?? null,
+    sqft: input.sqft ?? null,
+    lot_size: input.lot_size ?? null,
+    year_built: input.year_built ?? null,
+    property_type: input.property_type ?? null,
+    days_on_market: input.days_on_market ?? null,
+    photos: input.photos ?? [],
+    latitude: input.latitude ?? null,
+    longitude: input.longitude ?? null,
   };
 
   // First try to find existing deal by address_line1, city, state
@@ -58,6 +81,16 @@ export async function upsertDeal(input: RawDealInput) {
         rentcast_rent_estimate: payload.rentcast_rent_estimate,
         source_url: payload.source_url,
         scraped_at: payload.scraped_at,
+        beds: payload.beds,
+        baths: payload.baths,
+        sqft: payload.sqft,
+        lot_size: payload.lot_size,
+        year_built: payload.year_built,
+        property_type: payload.property_type,
+        days_on_market: payload.days_on_market,
+        photos: payload.photos,
+        latitude: payload.latitude,
+        longitude: payload.longitude,
       })
       .eq("id", existingDeal.id)
       .select()
