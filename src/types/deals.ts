@@ -32,6 +32,8 @@ export interface Deal {
     tax_annual?: number;
     insurance_annual?: number;
     estimated_rent?: number;
+    latitude?: number;
+    longitude?: number;
     status: DealStatus;
     scraped_at?: string;
     last_updated_at?: string;
