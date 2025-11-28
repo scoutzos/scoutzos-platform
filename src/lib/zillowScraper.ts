@@ -140,7 +140,7 @@ export async function searchProperties(
     // Extract photos from various possible locations
     let photos: string[] = [];
     if (Array.isArray(prop.photos)) {
-      photos = prop.photos.map((p: unknown) => typeof p === 'string' ? p : (p as Record<string, unknown>)?.url || (p as Record<string, unknown>)?.href || '').filter(Boolean);
+      photos = prop.photos.map((p: unknown): string => typeof p === 'string' ? p : (p as Record<string, unknown>)?.url as string || (p as Record<string, unknown>)?.href as string || '').filter(Boolean);
     } else if (Array.isArray(prop.carouselPhotos)) {
       photos = (prop.carouselPhotos as Record<string, unknown>[]).map(p => (p.url || p.href || '') as string).filter(Boolean);
     } else if (prop.imgSrc) {

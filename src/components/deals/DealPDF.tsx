@@ -1,6 +1,6 @@
 'use client';
 
-import { Document, Page, Text, View, StyleSheet } from '@react-pdf/renderer';
+import { Document, Page, Text, View, StyleSheet, Image } from '@react-pdf/renderer';
 import { Deal } from '@/types/deals';
 import { UnderwritingResult, formatCurrency, formatPercent } from '@/lib/services/underwriting';
 
@@ -338,10 +338,23 @@ export default function DealPDF({ deal, analysis }: DealPDFProps) {
                     </View>
                 </View>
 
-                {/* Property Photo Placeholder */}
-                <View style={styles.photoPlaceholder}>
-                    <Text style={styles.photoText}>Property Photo</Text>
-                </View>
+                {/* Property Photo */}
+                {deal.photos && deal.photos.length > 0 ? (
+                    <Image
+                        src={deal.photos[0]}
+                        style={{
+                            width: '100%',
+                            height: 200,
+                            marginBottom: 20,
+                            objectFit: 'cover',
+                            borderRadius: 4
+                        }}
+                    />
+                ) : (
+                    <View style={styles.photoPlaceholder}>
+                        <Text style={styles.photoText}>Property Photo</Text>
+                    </View>
+                )}
 
                 {/* Two Column Layout */}
                 <View style={styles.twoColumn}>
@@ -383,19 +396,31 @@ export default function DealPDF({ deal, analysis }: DealPDFProps) {
                         </View>
                         <View style={styles.detailRow}>
                             <Text style={styles.detailLabel}>Estimated Rent</Text>
-                            <Text style={styles.detailValue}>{deal.estimated_rent ? formatCurrency(deal.estimated_rent) + '/mo' : 'N/A'}</Text>
+                            <View style={{ alignItems: 'flex-end' }}>
+                                <Text style={styles.detailValue}>{deal.estimated_rent ? formatCurrency(deal.estimated_rent) + '/mo' : 'N/A'}</Text>
+                                {deal.rentcast_rent_estimate && (
+                                    <Text style={{ fontSize: 7, color: '#15803D', marginTop: 1 }}>
+                                        RentCast: {formatCurrency(deal.rentcast_rent_estimate)}
+                                    </Text>
+                                )}
+                                {deal.zillow_rent_estimate && (
+                                    <Text style={{ fontSize: 7, color: '#2563EB', marginTop: 1 }}>
+                                        Zillow: {formatCurrency(deal.zillow_rent_estimate)}
+                                    </Text>
+                                )}
+                            </View>
                         </View>
                         <View style={styles.detailRow}>
                             <Text style={styles.detailLabel}>Annual Taxes</Text>
-                            <Text style={styles.detailValue}>{deal.taxes ? formatCurrency(deal.taxes) : 'N/A'}</Text>
+                            <Text style={styles.detailValue}>{deal.tax_annual ? formatCurrency(deal.tax_annual) : 'N/A'}</Text>
                         </View>
                         <View style={styles.detailRow}>
                             <Text style={styles.detailLabel}>Annual Insurance</Text>
-                            <Text style={styles.detailValue}>{deal.insurance ? formatCurrency(deal.insurance) : 'Est. ' + formatCurrency(deal.list_price * 0.005)}</Text>
+                            <Text style={styles.detailValue}>{deal.insurance_annual ? formatCurrency(deal.insurance_annual) : 'Est. ' + formatCurrency(deal.list_price * 0.005)}</Text>
                         </View>
                         <View style={styles.detailRow}>
                             <Text style={styles.detailLabel}>HOA (Monthly)</Text>
-                            <Text style={styles.detailValue}>{deal.hoa ? formatCurrency(deal.hoa) : 'N/A'}</Text>
+                            <Text style={styles.detailValue}>{deal.hoa_monthly ? formatCurrency(deal.hoa_monthly) : 'N/A'}</Text>
                         </View>
                         <View style={styles.detailRow}>
                             <Text style={styles.detailLabel}>Gross Rent Multiplier</Text>

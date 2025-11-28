@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { supabaseAdmin, getTenantIdForUser } from '@/lib/supabase/admin';
 import { analyzeDeal, UnderwritingAssumptions, UnderwritingResult } from '@/lib/services/underwriting';
+import { generateInsights } from '@/lib/services/ai-insights';
 
 export async function POST(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
     try {
@@ -40,6 +41,8 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
             hoa: deal.hoa_monthly ? deal.hoa_monthly * 12 : 0,
         }, customAssumptions);
 
+        const insights = await generateInsights(deal, analysis);
+
         await supabaseAdmin.from('deal_metrics').upsert({
             deal_id: id,
             monthly_rent: deal.estimated_rent,
@@ -53,13 +56,20 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
             dscr: analysis.dscr,
             total_investment: analysis.totalCashRequired,
             assumptions_json: analysis.assumptions,
-            metrics_json: { purchasePrice: analysis.purchasePrice, downPayment: analysis.downPayment, loanAmount: analysis.loanAmount, monthlyMortgage: analysis.monthlyMortgage, expenses: analysis.expenses },
+            metrics_json: {
+                purchasePrice: analysis.purchasePrice,
+                downPayment: analysis.downPayment,
+                loanAmount: analysis.loanAmount,
+                monthlyMortgage: analysis.monthlyMortgage,
+                expenses: analysis.expenses,
+                insights // Store insights in metrics_json for now so we can retrieve them later
+            },
             calculated_at: new Date().toISOString(),
         }, { onConflict: 'deal_id' });
 
         if (deal.status === 'new') await supabaseAdmin.from('deals').update({ status: 'analyzing' }).eq('id', id);
 
-        return NextResponse.json({ analysis, deal_id: id, calculated_at: new Date().toISOString() });
+        return NextResponse.json({ analysis, insights, deal_id: id, calculated_at: new Date().toISOString() });
     } catch (error) {
         return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
     }
@@ -79,7 +89,11 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
 
         const { data: metrics, error: metricsError } = await supabaseAdmin.from('deal_metrics').select('*').eq('deal_id', id).single();
         if (metricsError?.code === 'PGRST116') return NextResponse.json({ error: 'No analysis found for this deal' }, { status: 404 });
-        return NextResponse.json({ metrics, deal_id: id });
+
+        // Extract insights from metrics_json if available
+        const insights = metrics.metrics_json?.insights || null;
+
+        return NextResponse.json({ metrics, insights, deal_id: id });
     } catch (error) {
         return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
     }

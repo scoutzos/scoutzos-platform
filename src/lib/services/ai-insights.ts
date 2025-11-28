@@ -1,4 +1,6 @@
 import { UnderwritingResult } from './underwriting';
+import { Deal } from '@/types/deals';
+import OpenAI from 'openai';
 
 export interface AIInsights {
     pros: string[];
@@ -6,7 +8,66 @@ export interface AIInsights {
     thesis: string;
 }
 
-export function generateInsights(analysis: UnderwritingResult): AIInsights {
+// Initialize OpenAI client
+const openai = new OpenAI({
+    apiKey: process.env.OPENAI_API_KEY,
+    dangerouslyAllowBrowser: true // Note: In a real app, we should only call this server-side
+});
+
+export async function generateInsights(deal: Deal, analysis: UnderwritingResult): Promise<AIInsights> {
+    try {
+        if (!process.env.OPENAI_API_KEY) {
+            console.warn('OPENAI_API_KEY not found, falling back to rule-based insights');
+            return generateRuleBasedInsights(analysis);
+        }
+
+        const prompt = `
+        Analyze this real estate deal and provide an investment thesis, pros, and cons.
+        
+        Property Details:
+        Address: ${deal.address_line1}, ${deal.city}, ${deal.state}
+        List Price: $${deal.list_price}
+        Estimated Rent: $${deal.estimated_rent || 'N/A'}
+        Property Type: ${deal.property_type || 'N/A'}
+        Year Built: ${deal.year_built || 'N/A'}
+        
+        Underwriting Analysis:
+        Cap Rate: ${(analysis.capRate * 100).toFixed(2)}%
+        Cash on Cash Return: ${(analysis.cashOnCash * 100).toFixed(2)}%
+        Monthly Cash Flow: $${analysis.monthlyCashFlow.toFixed(2)}
+        DSCR: ${analysis.dscr.toFixed(2)}
+        Total Investment: $${analysis.totalCashRequired.toFixed(2)}
+        
+        Provide the output in the following JSON format:
+        {
+            "pros": ["pro1", "pro2", "pro3", "pro4"],
+            "cons": ["con1", "con2", "con3", "con4"],
+            "thesis": "A 2-3 sentence investment thesis summarizing the opportunity."
+        }
+        
+        Focus on the financial metrics and how they compare to typical market standards (e.g. Cap Rate > 6% is good, DSCR > 1.25 is safe).
+        `;
+
+        const completion = await openai.chat.completions.create({
+            messages: [{ role: "system", content: "You are an expert real estate investment analyst." }, { role: "user", content: prompt }],
+            model: "gpt-4o",
+            response_format: { type: "json_object" },
+        });
+
+        const content = completion.choices[0].message.content;
+        if (content) {
+            return JSON.parse(content) as AIInsights;
+        }
+
+        throw new Error('No content in OpenAI response');
+
+    } catch (error) {
+        console.error('Error generating AI insights:', error);
+        return generateRuleBasedInsights(analysis);
+    }
+}
+
+function generateRuleBasedInsights(analysis: UnderwritingResult): AIInsights {
     const pros: string[] = [];
     const cons: string[] = [];
 

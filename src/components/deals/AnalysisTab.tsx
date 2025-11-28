@@ -1,10 +1,9 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { UnderwritingResult, formatCurrency, formatPercent, getRatingColor, getRatingBgColor, UnderwritingAssumptions, DEFAULT_ASSUMPTIONS } from '@/lib/services/underwriting';
 import { Deal } from '@/types/deals';
 import { createClient } from '@/lib/supabase/client';
-import { generateInsights } from '@/lib/services/ai-insights';
 
 interface AnalysisTabProps {
     dealId: string;
@@ -22,8 +21,42 @@ export default function AnalysisTab({ dealId, dealData }: AnalysisTabProps) {
     const [loading, setLoading] = useState(true);
     const [analyzing, setAnalyzing] = useState(false);
     const [error, setError] = useState<AnalysisError | null>(null);
-    const [isEditing, setIsEditing] = useState(false);
+    const [assumptionsOpen, setAssumptionsOpen] = useState(false);
     const [assumptions, setAssumptions] = useState<UnderwritingAssumptions>(DEFAULT_ASSUMPTIONS);
+    const [savedAssumptions, setSavedAssumptions] = useState<UnderwritingAssumptions>(DEFAULT_ASSUMPTIONS);
+    const [insights, setInsights] = useState<{ pros: string[], cons: string[], thesis: string } | null>(null);
+    const [calculatedAt, setCalculatedAt] = useState<string | null>(null);
+
+    // Format timestamp for display
+    const formatTimestamp = (isoString: string) => {
+        const date = new Date(isoString);
+        return date.toLocaleString('en-US', {
+            month: 'short',
+            day: 'numeric',
+            year: 'numeric',
+            hour: 'numeric',
+            minute: '2-digit',
+            hour12: true
+        });
+    };
+
+    // Check if deal data is newer than the analysis
+    const isStale = useMemo(() => {
+        if (!calculatedAt || !dealData?.updated_at) return false;
+        return new Date(dealData.updated_at) > new Date(calculatedAt);
+    }, [calculatedAt, dealData?.updated_at]);
+
+    // Check if assumptions have been modified from saved values
+    const isModified = useMemo(() => {
+        return (
+            assumptions.interestRate !== savedAssumptions.interestRate ||
+            assumptions.loanToValue !== savedAssumptions.loanToValue ||
+            assumptions.vacancyRate !== savedAssumptions.vacancyRate ||
+            assumptions.managementRate !== savedAssumptions.managementRate ||
+            assumptions.maintenanceRate !== savedAssumptions.maintenanceRate ||
+            assumptions.capexRate !== savedAssumptions.capexRate
+        );
+    }, [assumptions, savedAssumptions]);
 
     useEffect(() => {
         fetchAnalysis();
@@ -38,6 +71,10 @@ export default function AnalysisTab({ dealId, dealData }: AnalysisTabProps) {
                 const data = await response.json();
                 if (data.metrics) {
                     // Existing metrics found, run analysis to get full result
+                    // Also check if we have stored insights
+                    if (data.insights) {
+                        setInsights(data.insights);
+                    }
                     runAnalysis(assumptions);
                 } else {
                     runAnalysis(assumptions);
@@ -77,14 +114,24 @@ export default function AnalysisTab({ dealId, dealData }: AnalysisTabProps) {
 
             setAnalysis(data.analysis);
             setAssumptions(data.analysis.assumptions);
+            setSavedAssumptions(data.analysis.assumptions);
+            if (data.calculated_at) {
+                setCalculatedAt(data.calculated_at);
+            }
+            if (data.insights) {
+                setInsights(data.insights);
+            }
         } catch (err) {
             console.error(err);
             setError({ error: 'Failed to run analysis', message: 'An unexpected error occurred. Please try again.' });
         } finally {
             setAnalyzing(false);
             setLoading(false);
-            setIsEditing(false);
         }
+    };
+
+    const handleReset = () => {
+        setAssumptions(savedAssumptions);
     };
 
     const handleAssumptionChange = (key: keyof UnderwritingAssumptions, value: string) => {
@@ -132,17 +179,169 @@ export default function AnalysisTab({ dealId, dealData }: AnalysisTabProps) {
     );
     if (!analysis) return <div className="p-8 text-center"><button onClick={() => runAnalysis(assumptions)} className="text-blue-600 hover:underline">Run Analysis</button></div>;
 
-    const insights = generateInsights(analysis);
+    // Use insights from state, or fallback to empty structure if loading/missing
+    const displayInsights = insights || { pros: [], cons: [], thesis: 'Analysis pending...' };
 
     return (
         <div className="space-y-8">
-            <div className="flex justify-end">
+            {/* Timestamp and Stale Warning */}
+            <div className="flex items-center justify-end gap-3">
+                {isStale && (
+                    <span className="inline-flex items-center gap-1 px-2 py-1 rounded text-xs font-medium bg-amber-100 text-amber-800">
+                        <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                        </svg>
+                        Deal data changed since last analysis
+                    </span>
+                )}
+                {calculatedAt && (
+                    <span className="text-xs text-gray-500">
+                        Last calculated: {formatTimestamp(calculatedAt)}
+                    </span>
+                )}
+            </div>
+
+            {/* Collapsible Assumptions Panel */}
+            <div className="bg-white rounded-lg shadow border border-gray-200">
                 <button
-                    onClick={() => setIsEditing(true)}
-                    className="text-sm font-medium text-blue-600 hover:text-blue-500"
+                    onClick={() => setAssumptionsOpen(!assumptionsOpen)}
+                    className="w-full px-4 py-3 flex items-center justify-between text-left hover:bg-gray-50 transition-colors"
                 >
-                    Edit Assumptions
+                    <div className="flex items-center gap-2">
+                        <svg
+                            className={`h-5 w-5 text-gray-500 transition-transform ${assumptionsOpen ? 'rotate-90' : ''}`}
+                            fill="none"
+                            viewBox="0 0 24 24"
+                            stroke="currentColor"
+                        >
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                        </svg>
+                        <span className="text-sm font-semibold text-gray-900">Assumptions</span>
+                        {isModified && (
+                            <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-amber-100 text-amber-800">
+                                Modified
+                            </span>
+                        )}
+                    </div>
+                    {isModified && (
+                        <button
+                            onClick={(e) => {
+                                e.stopPropagation();
+                                handleReset();
+                            }}
+                            className="text-sm text-gray-500 hover:text-gray-700 underline"
+                        >
+                            Reset
+                        </button>
+                    )}
                 </button>
+
+                {assumptionsOpen && (
+                    <div className="px-4 pb-4 border-t border-gray-100">
+                        <div className="grid grid-cols-2 md:grid-cols-3 gap-4 mt-4">
+                            <div>
+                                <label className="block text-xs font-medium text-gray-500 mb-1">Interest Rate</label>
+                                <div className="flex items-center">
+                                    <input
+                                        type="number"
+                                        step="0.1"
+                                        value={assumptions.interestRate}
+                                        onChange={(e) => handleAssumptionChange('interestRate', e.target.value)}
+                                        className="w-20 rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 text-sm border p-2"
+                                    />
+                                    <span className="ml-1 text-sm text-gray-500">%</span>
+                                </div>
+                            </div>
+                            <div>
+                                <label className="block text-xs font-medium text-gray-500 mb-1">Vacancy</label>
+                                <div className="flex items-center">
+                                    <input
+                                        type="number"
+                                        step="1"
+                                        value={assumptions.vacancyRate}
+                                        onChange={(e) => handleAssumptionChange('vacancyRate', e.target.value)}
+                                        className="w-20 rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 text-sm border p-2"
+                                    />
+                                    <span className="ml-1 text-sm text-gray-500">%</span>
+                                </div>
+                            </div>
+                            <div>
+                                <label className="block text-xs font-medium text-gray-500 mb-1">LTV</label>
+                                <div className="flex items-center">
+                                    <input
+                                        type="number"
+                                        step="1"
+                                        value={assumptions.loanToValue}
+                                        onChange={(e) => handleAssumptionChange('loanToValue', e.target.value)}
+                                        className="w-20 rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 text-sm border p-2"
+                                    />
+                                    <span className="ml-1 text-sm text-gray-500">%</span>
+                                </div>
+                            </div>
+                            <div>
+                                <label className="block text-xs font-medium text-gray-500 mb-1">Management</label>
+                                <div className="flex items-center">
+                                    <input
+                                        type="number"
+                                        step="1"
+                                        value={assumptions.managementRate}
+                                        onChange={(e) => handleAssumptionChange('managementRate', e.target.value)}
+                                        className="w-20 rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 text-sm border p-2"
+                                    />
+                                    <span className="ml-1 text-sm text-gray-500">%</span>
+                                </div>
+                            </div>
+                            <div>
+                                <label className="block text-xs font-medium text-gray-500 mb-1">Maintenance</label>
+                                <div className="flex items-center">
+                                    <input
+                                        type="number"
+                                        step="1"
+                                        value={assumptions.maintenanceRate}
+                                        onChange={(e) => handleAssumptionChange('maintenanceRate', e.target.value)}
+                                        className="w-20 rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 text-sm border p-2"
+                                    />
+                                    <span className="ml-1 text-sm text-gray-500">%</span>
+                                </div>
+                            </div>
+                            <div>
+                                <label className="block text-xs font-medium text-gray-500 mb-1">CapEx</label>
+                                <div className="flex items-center">
+                                    <input
+                                        type="number"
+                                        step="1"
+                                        value={assumptions.capexRate}
+                                        onChange={(e) => handleAssumptionChange('capexRate', e.target.value)}
+                                        className="w-20 rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 text-sm border p-2"
+                                    />
+                                    <span className="ml-1 text-sm text-gray-500">%</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        {isModified && (
+                            <div className="mt-4 flex justify-center">
+                                <button
+                                    onClick={() => runAnalysis(assumptions)}
+                                    disabled={analyzing}
+                                    className="inline-flex items-center px-6 py-2 border border-transparent text-sm font-semibold rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
+                                >
+                                    {analyzing ? (
+                                        <>
+                                            <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" fill="none" viewBox="0 0 24 24">
+                                                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                                                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                            </svg>
+                                            Recalculating...
+                                        </>
+                                    ) : (
+                                        'Recalculate Analysis'
+                                    )}
+                                </button>
+                            </div>
+                        )}
+                    </div>
+                )}
             </div>
 
             {/* AI Insights Section */}
@@ -156,26 +355,26 @@ export default function AnalysisTab({ dealId, dealData }: AnalysisTabProps) {
 
                 <div className="mb-4">
                     <h4 className="text-sm font-bold text-indigo-800 uppercase tracking-wide mb-2">Investment Thesis</h4>
-                    <p className="text-gray-700 italic">{insights.thesis}</p>
+                    <p className="text-gray-700 italic">{displayInsights.thesis}</p>
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div>
                         <h4 className="text-sm font-bold text-green-700 uppercase tracking-wide mb-2">Pros</h4>
                         <ul className="list-disc list-inside space-y-1">
-                            {insights.pros.map((pro, idx) => (
+                            {displayInsights.pros.map((pro, idx) => (
                                 <li key={idx} className="text-sm text-gray-700">{pro}</li>
                             ))}
-                            {insights.pros.length === 0 && <li className="text-sm text-gray-500">No significant pros identified based on current metrics.</li>}
+                            {displayInsights.pros.length === 0 && <li className="text-sm text-gray-500">No significant pros identified based on current metrics.</li>}
                         </ul>
                     </div>
                     <div>
                         <h4 className="text-sm font-bold text-red-700 uppercase tracking-wide mb-2">Cons</h4>
                         <ul className="list-disc list-inside space-y-1">
-                            {insights.cons.map((con, idx) => (
+                            {displayInsights.cons.map((con, idx) => (
                                 <li key={idx} className="text-sm text-gray-700">{con}</li>
                             ))}
-                            {insights.cons.length === 0 && <li className="text-sm text-gray-500">No significant cons identified based on current metrics.</li>}
+                            {displayInsights.cons.length === 0 && <li className="text-sm text-gray-500">No significant cons identified based on current metrics.</li>}
                         </ul>
                     </div>
                 </div>
@@ -285,107 +484,6 @@ export default function AnalysisTab({ dealId, dealData }: AnalysisTabProps) {
                 </div>
             </div>
 
-            {/* Edit Modal */}
-            {isEditing && (
-                <div className="fixed inset-0 z-10 overflow-y-auto">
-                    <div className="flex min-h-full items-end justify-center p-4 text-center sm:items-center sm:p-0">
-                        <div className="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity" onClick={() => setIsEditing(false)} />
-
-                        <div className="relative transform overflow-hidden rounded-lg bg-white px-4 pb-4 pt-5 text-left shadow-xl transition-all sm:my-8 sm:w-full sm:max-w-lg sm:p-6">
-                            <div className="absolute right-0 top-0 hidden pr-4 pt-4 sm:block">
-                                <button
-                                    type="button"
-                                    className="rounded-md bg-white text-gray-400 hover:text-gray-500 focus:outline-none"
-                                    onClick={() => setIsEditing(false)}
-                                >
-                                    <span className="sr-only">Close</span>
-                                    <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor">
-                                        <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-                                    </svg>
-                                </button>
-                            </div>
-
-                            <div className="sm:flex sm:items-start">
-                                <div className="mt-3 text-center sm:ml-4 sm:mt-0 sm:text-left w-full">
-                                    <h3 className="text-base font-semibold leading-6 text-gray-900">Edit Assumptions</h3>
-                                    <div className="mt-4 grid grid-cols-2 gap-4">
-                                        <div>
-                                            <label className="block text-sm font-medium text-gray-700">Interest Rate (%)</label>
-                                            <input
-                                                type="number"
-                                                value={assumptions.interestRate}
-                                                onChange={(e) => handleAssumptionChange('interestRate', e.target.value)}
-                                                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm border p-2"
-                                            />
-                                        </div>
-                                        <div>
-                                            <label className="block text-sm font-medium text-gray-700">Loan to Value (%)</label>
-                                            <input
-                                                type="number"
-                                                value={assumptions.loanToValue}
-                                                onChange={(e) => handleAssumptionChange('loanToValue', e.target.value)}
-                                                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm border p-2"
-                                            />
-                                        </div>
-                                        <div>
-                                            <label className="block text-sm font-medium text-gray-700">Vacancy Rate (%)</label>
-                                            <input
-                                                type="number"
-                                                value={assumptions.vacancyRate}
-                                                onChange={(e) => handleAssumptionChange('vacancyRate', e.target.value)}
-                                                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm border p-2"
-                                            />
-                                        </div>
-                                        <div>
-                                            <label className="block text-sm font-medium text-gray-700">Management Rate (%)</label>
-                                            <input
-                                                type="number"
-                                                value={assumptions.managementRate}
-                                                onChange={(e) => handleAssumptionChange('managementRate', e.target.value)}
-                                                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm border p-2"
-                                            />
-                                        </div>
-                                        <div>
-                                            <label className="block text-sm font-medium text-gray-700">Maintenance Rate (%)</label>
-                                            <input
-                                                type="number"
-                                                value={assumptions.maintenanceRate}
-                                                onChange={(e) => handleAssumptionChange('maintenanceRate', e.target.value)}
-                                                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm border p-2"
-                                            />
-                                        </div>
-                                        <div>
-                                            <label className="block text-sm font-medium text-gray-700">CapEx Rate (%)</label>
-                                            <input
-                                                type="number"
-                                                value={assumptions.capexRate}
-                                                onChange={(e) => handleAssumptionChange('capexRate', e.target.value)}
-                                                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm border p-2"
-                                            />
-                                        </div>
-                                    </div>
-                                    <div className="mt-5 sm:mt-4 sm:flex sm:flex-row-reverse">
-                                        <button
-                                            type="button"
-                                            className="inline-flex w-full justify-center rounded-md bg-blue-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-blue-500 sm:ml-3 sm:w-auto"
-                                            onClick={() => runAnalysis(assumptions)}
-                                        >
-                                            {analyzing ? 'Calculating...' : 'Recalculate'}
-                                        </button>
-                                        <button
-                                            type="button"
-                                            className="mt-3 inline-flex w-full justify-center rounded-md bg-white px-3 py-2 text-sm font-semibold text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 hover:bg-gray-50 sm:mt-0 sm:w-auto"
-                                            onClick={() => setIsEditing(false)}
-                                        >
-                                            Cancel
-                                        </button>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            )}
         </div>
     );
 }

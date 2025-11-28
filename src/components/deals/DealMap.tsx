@@ -44,6 +44,13 @@ export default function DealMap({ deals }: DealMapProps) {
                         >
                             <Popup>
                                 <div className="p-1">
+                                    {deal.photos && deal.photos.length > 0 && (
+                                        <img
+                                            src={deal.photos[0]}
+                                            alt={deal.address_line1}
+                                            className="w-full h-24 object-cover rounded mb-2"
+                                        />
+                                    )}
                                     <h3 className="font-semibold text-sm">{deal.address_line1}</h3>
                                     <p className="text-blue-600 font-bold text-sm">{formatCurrency(deal.list_price)}</p>
                                     <div className="mt-2">

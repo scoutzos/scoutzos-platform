@@ -39,5 +39,6 @@ export interface Deal {
     status: DealStatus;
     scraped_at?: string;
     last_updated_at?: string;
+    updated_at?: string;
     created_at: string;
 }
