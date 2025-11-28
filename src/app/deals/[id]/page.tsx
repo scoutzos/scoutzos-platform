@@ -182,7 +182,32 @@ export default function DealDetailPage({ params }: { params: Promise<{ id: strin
                                     </div>
                                     <div className="py-4 sm:py-5 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-6">
                                         <dt className="text-sm font-medium text-gray-500">Estimated Rent</dt>
-                                        <dd className="mt-1 text-sm text-gray-900 sm:mt-0 sm:col-span-2">{deal.estimated_rent ? formatCurrency(deal.estimated_rent) : 'N/A'}</dd>
+                                        <dd className="mt-1 text-sm text-gray-900 sm:mt-0 sm:col-span-2">
+                                            {deal.estimated_rent ? (
+                                                <div className="space-y-1">
+                                                    <div className="font-semibold">{formatCurrency(deal.estimated_rent)}/mo</div>
+                                                    {(deal.rentcast_rent_estimate || deal.zillow_rent_estimate) && (
+                                                        <div className="text-xs text-gray-500 space-y-0.5">
+                                                            {deal.rentcast_rent_estimate && (
+                                                                <div className="flex items-center">
+                                                                    <span className="inline-flex items-center rounded-full bg-green-100 px-2 py-0.5 text-xs font-medium text-green-700 mr-2">RentCast</span>
+                                                                    {formatCurrency(deal.rentcast_rent_estimate)}/mo
+                                                                </div>
+                                                            )}
+                                                            {deal.zillow_rent_estimate && (
+                                                                <div className="flex items-center">
+                                                                    <span className="inline-flex items-center rounded-full bg-blue-100 px-2 py-0.5 text-xs font-medium text-blue-700 mr-2">Zillow</span>
+                                                                    {formatCurrency(deal.zillow_rent_estimate)}/mo
+                                                                </div>
+                                                            )}
+                                                            {!deal.rentcast_rent_estimate && !deal.zillow_rent_estimate && (
+                                                                <div className="text-gray-400 italic">Calculated (0.7% rule)</div>
+                                                            )}
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            ) : 'N/A'}
+                                        </dd>
                                     </div>
                                 </dl>
                             </div>

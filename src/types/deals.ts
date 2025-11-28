@@ -32,6 +32,8 @@ export interface Deal {
     tax_annual?: number;
     insurance_annual?: number;
     estimated_rent?: number;
+    zillow_rent_estimate?: number;
+    rentcast_rent_estimate?: number;
     latitude?: number;
     longitude?: number;
     status: DealStatus;

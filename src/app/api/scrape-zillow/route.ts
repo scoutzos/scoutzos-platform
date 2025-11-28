@@ -57,13 +57,16 @@ export type ScrapeZillowResponse = {
 
 // Transform ZillowProperty to extended response format
 function zillowPropertyToResponse(prop: ZillowProperty): ZillowPropertyResponse {
+  // Calculate estimated rent: use rentZestimate if available, otherwise use 0.7% rule
+  const estimatedRent = prop.rentZestimate ?? (prop.price > 0 ? Math.round(prop.price * 0.007) : null);
+
   return {
     address: prop.address,
     city: prop.city,
     state: prop.state,
     zipcode: prop.zipcode,
     list_price: prop.price,
-    rent_estimate: prop.rentZestimate,
+    rent_estimate: estimatedRent,
     url: prop.detailUrl,
     source: "zillow",
     source_url: prop.detailUrl,

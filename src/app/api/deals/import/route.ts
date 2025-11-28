@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { supabaseAdmin, getTenantIdForUser } from "@/lib/supabase/admin";
 import { DealStatus } from "@/types/deals";
+import { getRentEstimate, mapPropertyType } from "@/lib/rentCast";
 
 export type ImportDealInput = {
   address: string;
@@ -11,6 +12,7 @@ export type ImportDealInput = {
   zipcode?: string;
   list_price: number;
   rent_estimate?: number | null;
+  zillow_rent_estimate?: number | null; // Zillow's rentZestimate
   url?: string | null;
   source?: string | null;
   source_url?: string | null;
@@ -76,6 +78,31 @@ export async function POST(request: NextRequest) {
 
     for (const deal of body.deals) {
       try {
+        // Get RentCast estimate
+        let rentcastEstimate: number | null = null;
+        try {
+          const rentcastResult = await getRentEstimate({
+            address: deal.address.trim(),
+            city: deal.city.trim(),
+            state: deal.state.trim().toUpperCase(),
+            zipCode: deal.zipcode,
+            bedrooms: deal.beds,
+            bathrooms: deal.baths,
+            squareFootage: deal.sqft,
+            propertyType: deal.property_type ? mapPropertyType(deal.property_type) : undefined,
+          });
+          rentcastEstimate = rentcastResult?.rent ?? null;
+        } catch (rentcastError) {
+          console.warn(`[RentCast] Failed for ${deal.address}:`, rentcastError);
+        }
+
+        // Zillow rent estimate (from rentZestimate)
+        const zillowEstimate = deal.zillow_rent_estimate ?? deal.rent_estimate ?? null;
+
+        // Calculate the best rent estimate: RentCast > Zillow > 0.7% rule
+        const calculatedRent = deal.list_price > 0 ? Math.round(deal.list_price * 0.007) : null;
+        const bestRentEstimate = rentcastEstimate ?? zillowEstimate ?? calculatedRent;
+
         // Map input fields to actual table columns
         const payload = {
           tenant_id: tenantId,
@@ -84,7 +111,9 @@ export async function POST(request: NextRequest) {
           state: deal.state.trim().toUpperCase(),
           zip: deal.zipcode || "", // Use zipcode from Zillow if available
           list_price: deal.list_price,
-          estimated_rent: deal.rent_estimate ?? null,
+          estimated_rent: bestRentEstimate,
+          zillow_rent_estimate: zillowEstimate,
+          rentcast_rent_estimate: rentcastEstimate,
           source: deal.source ?? "manual",
           source_url: deal.source_url ?? deal.url ?? null,
           scraped_at: new Date().toISOString(),
@@ -119,6 +148,8 @@ export async function POST(request: NextRequest) {
             .update({
               list_price: payload.list_price,
               estimated_rent: payload.estimated_rent,
+              zillow_rent_estimate: payload.zillow_rent_estimate,
+              rentcast_rent_estimate: payload.rentcast_rent_estimate,
               source_url: payload.source_url,
               scraped_at: payload.scraped_at,
               beds: payload.beds,

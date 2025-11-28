@@ -7,6 +7,8 @@ export type RawDealInput = {
   state: string;
   list_price: number;
   rent_estimate?: number | null;
+  zillow_rent_estimate?: number | null;
+  rentcast_rent_estimate?: number | null;
   url?: string | null;
   source?: string | null;
   source_url?: string | null;
@@ -27,6 +29,8 @@ export async function upsertDeal(input: RawDealInput) {
     zip: "", // Required field, but we don't have it from Zillow search results
     list_price: input.list_price,
     estimated_rent: input.rent_estimate ?? null,
+    zillow_rent_estimate: input.zillow_rent_estimate ?? null,
+    rentcast_rent_estimate: input.rentcast_rent_estimate ?? null,
     source: input.source ?? "manual",
     source_url: input.source_url ?? input.url ?? null,
     scraped_at: new Date().toISOString(),
@@ -50,6 +54,8 @@ export async function upsertDeal(input: RawDealInput) {
       .update({
         list_price: payload.list_price,
         estimated_rent: payload.estimated_rent,
+        zillow_rent_estimate: payload.zillow_rent_estimate,
+        rentcast_rent_estimate: payload.rentcast_rent_estimate,
         source_url: payload.source_url,
         scraped_at: payload.scraped_at,
       })

@@ -203,16 +203,22 @@ export async function searchByCity(
  * Convert a Zillow property to RawDealInput for database insertion
  */
 export function zillowPropertyToDeal(prop: ZillowProperty): RawDealInput {
-  console.log('=== RAW ZILLOW PROPERTY ===');
-  console.log(JSON.stringify(prop, null, 2));
-  console.log('=== END RAW PROPERTY ===');
+  // Store Zillow's rentZestimate separately
+  const zillowRentEstimate = prop.rentZestimate;
+
+  // Calculate fallback estimated rent using 0.7% rule if no Zillow estimate
+  const calculatedRent = prop.price > 0 ? Math.round(prop.price * 0.007) : null;
+
+  // Best estimate: Zillow > calculated (RentCast will be added during import)
+  const bestEstimate = zillowRentEstimate ?? calculatedRent;
 
   return {
     address: prop.address,
     city: prop.city,
     state: prop.state,
     list_price: prop.price,
-    rent_estimate: prop.rentZestimate,
+    rent_estimate: bestEstimate,
+    zillow_rent_estimate: zillowRentEstimate,
     url: prop.detailUrl,
     source: "zillow",
     source_url: prop.detailUrl,
