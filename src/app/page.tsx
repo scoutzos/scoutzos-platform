@@ -1,6 +1,7 @@
 import { supabaseAdmin } from '@/lib/supabase/admin';
 import { Deal, DealStatus } from '@/types/deals';
 import Link from 'next/link';
+import StatusPieChart from '@/components/dashboard/StatusPieChart';
 
 interface DealMetrics {
     deal_id: string;
@@ -193,50 +194,44 @@ export default async function Home() {
                     </div>
                 </div>
 
-                {/* Deals by Status and Quick Actions */}
+                {/* Deals by Status Chart and Quick Actions */}
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
-                    {/* Deals by Status */}
-                    <div className="lg:col-span-2 bg-white rounded-lg shadow p-6">
+                    {/* Deals by Status Pie Chart */}
+                    <div className="bg-white rounded-lg shadow p-6">
                         <h2 className="text-lg font-semibold text-gray-900 mb-4">Deals by Status</h2>
-                        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-                            {Object.entries(stats.dealsByStatus).map(([status, count]) => (
-                                <div key={status} className="text-center p-4 bg-gray-50 rounded-lg">
-                                    <span className={`inline-block px-2 py-1 text-xs font-medium rounded-full ${getStatusColor(status as DealStatus)}`}>
-                                        {status.replace('_', ' ')}
-                                    </span>
-                                    <p className="mt-2 text-2xl font-bold text-gray-900">{count}</p>
-                                </div>
-                            ))}
-                        </div>
+                        <StatusPieChart
+                            dealsByStatus={stats.dealsByStatus}
+                            totalDeals={stats.totalDeals}
+                        />
                     </div>
 
                     {/* Quick Actions */}
-                    <div className="bg-white rounded-lg shadow p-6">
+                    <div className="lg:col-span-2 bg-white rounded-lg shadow p-6">
                         <h2 className="text-lg font-semibold text-gray-900 mb-4">Quick Actions</h2>
-                        <div className="space-y-3">
+                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                             <Link
                                 href="/deals/new"
-                                className="flex items-center justify-center w-full px-4 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium"
+                                className="flex flex-col items-center justify-center px-4 py-6 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium"
                             >
-                                <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <svg className="w-8 h-8 mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
                                 </svg>
                                 Add Deal
                             </Link>
                             <Link
                                 href="/pipeline"
-                                className="flex items-center justify-center w-full px-4 py-3 bg-white border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors font-medium"
+                                className="flex flex-col items-center justify-center px-4 py-6 bg-white border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors font-medium"
                             >
-                                <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 10h16M4 14h16M4 18h16" />
+                                <svg className="w-8 h-8 mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 17V7m0 10a2 2 0 01-2 2H5a2 2 0 01-2-2V7a2 2 0 012-2h2a2 2 0 012 2m0 10a2 2 0 002 2h2a2 2 0 002-2M9 7a2 2 0 012-2h2a2 2 0 012 2m0 10V7m0 10a2 2 0 002 2h2a2 2 0 002-2V7a2 2 0 00-2-2h-2a2 2 0 00-2 2" />
                                 </svg>
                                 View Pipeline
                             </Link>
                             <Link
                                 href="/deals"
-                                className="flex items-center justify-center w-full px-4 py-3 bg-white border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors font-medium"
+                                className="flex flex-col items-center justify-center px-4 py-6 bg-white border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors font-medium"
                             >
-                                <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <svg className="w-8 h-8 mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
                                 </svg>
                                 Browse Deals
