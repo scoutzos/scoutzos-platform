@@ -21,6 +21,7 @@ interface ZillowProperty {
   address: string;
   city: string;
   state: string;
+  zipcode: string;
   list_price: number;
   rent_estimate: number | null;
   url: string;
@@ -28,6 +29,17 @@ interface ZillowProperty {
   source_url: string;
   is_off_market: boolean;
   status: string;
+  // Additional fields
+  beds: number;
+  baths: number;
+  sqft: number;
+  lot_size: number;
+  year_built: number | null;
+  property_type: string;
+  days_on_market: number;
+  photos: string[];
+  latitude: number;
+  longitude: number;
 }
 
 interface ZillowSearchResponse {
@@ -425,19 +437,31 @@ export default function DealsImportPage() {
     setImportingSelected(true);
     setZillowImportSummary(null);
 
-    // Collect all selected properties
+    // Collect all selected properties with full details
     const dealsToImport = Array.from(selectedProperties).map((index) => {
       const prop = zillowResults[index];
       return {
         address: prop.address,
         city: prop.city,
         state: prop.state,
+        zipcode: prop.zipcode,
         list_price: prop.list_price,
         rent_estimate: prop.rent_estimate,
         url: prop.url,
         source: "zillow",
         source_url: prop.source_url,
         is_off_market: prop.is_off_market,
+        // Additional fields
+        beds: prop.beds,
+        baths: prop.baths,
+        sqft: prop.sqft,
+        lot_size: prop.lot_size,
+        year_built: prop.year_built,
+        property_type: prop.property_type,
+        days_on_market: prop.days_on_market,
+        photos: prop.photos,
+        latitude: prop.latitude,
+        longitude: prop.longitude,
       };
     });
 

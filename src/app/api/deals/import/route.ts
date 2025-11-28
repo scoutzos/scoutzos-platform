@@ -8,6 +8,7 @@ export type ImportDealInput = {
   address: string;
   city: string;
   state: string;
+  zipcode?: string;
   list_price: number;
   rent_estimate?: number | null;
   url?: string | null;
@@ -15,6 +16,17 @@ export type ImportDealInput = {
   source_url?: string | null;
   is_off_market?: boolean;
   status?: string;
+  // Additional fields
+  beds?: number;
+  baths?: number;
+  sqft?: number;
+  lot_size?: number;
+  year_built?: number | null;
+  property_type?: string;
+  days_on_market?: number;
+  photos?: string[];
+  latitude?: number;
+  longitude?: number;
 };
 
 export type ImportDealsRequest = {
@@ -70,13 +82,24 @@ export async function POST(request: NextRequest) {
           address_line1: deal.address.trim(),
           city: deal.city.trim(),
           state: deal.state.trim().toUpperCase(),
-          zip: "", // Required field, but we don't have it from search results
+          zip: deal.zipcode || "", // Use zipcode from Zillow if available
           list_price: deal.list_price,
           estimated_rent: deal.rent_estimate ?? null,
           source: deal.source ?? "manual",
           source_url: deal.source_url ?? deal.url ?? null,
           scraped_at: new Date().toISOString(),
           status: "new" as DealStatus,
+          // Additional fields from Zillow
+          beds: deal.beds ?? null,
+          baths: deal.baths ?? null,
+          sqft: deal.sqft ?? null,
+          lot_size: deal.lot_size ?? null,
+          year_built: deal.year_built ?? null,
+          property_type: deal.property_type ?? null,
+          days_on_market: deal.days_on_market ?? null,
+          photos: deal.photos ?? [],
+          latitude: deal.latitude ?? null,
+          longitude: deal.longitude ?? null,
         };
 
         // First try to find existing deal by address_line1, city, state for this tenant
@@ -90,7 +113,7 @@ export async function POST(request: NextRequest) {
           .single();
 
         if (existingDeal) {
-          // Update existing deal
+          // Update existing deal with all fields
           const { error } = await supabaseAdmin
             .from("deals")
             .update({
@@ -98,6 +121,16 @@ export async function POST(request: NextRequest) {
               estimated_rent: payload.estimated_rent,
               source_url: payload.source_url,
               scraped_at: payload.scraped_at,
+              beds: payload.beds,
+              baths: payload.baths,
+              sqft: payload.sqft,
+              lot_size: payload.lot_size,
+              year_built: payload.year_built,
+              property_type: payload.property_type,
+              days_on_market: payload.days_on_market,
+              photos: payload.photos,
+              latitude: payload.latitude,
+              longitude: payload.longitude,
             })
             .eq("id", existingDeal.id);
 

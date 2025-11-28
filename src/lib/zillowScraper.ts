@@ -42,6 +42,10 @@ export type ZillowProperty = {
   detailUrl: string;
   latitude: number;
   longitude: number;
+  // Additional fields for comprehensive deal data
+  yearBuilt: number | null;
+  photos: string[];
+  description: string | null;
 };
 
 export type ZillowSearchResponse = {
@@ -119,32 +123,57 @@ export async function searchProperties(
 
   console.log("[Zillow API] Found", rawProps.length, "properties");
 
+  // Log first property to see available fields
+  if (rawProps.length > 0) {
+    console.log("[Zillow API] Sample raw property:", JSON.stringify(rawProps[0], null, 2));
+  }
+
   // Transform the API response to our expected format
   const props: ZillowProperty[] = rawProps.map((prop: Record<string, unknown>) => {
     // Handle nested address object
     const addressObj = prop.address as Record<string, unknown> | undefined;
 
+    // Handle nested hdpData object (common in some API responses)
+    const hdpData = prop.hdpData as Record<string, unknown> | undefined;
+    const homeInfo = hdpData?.homeInfo as Record<string, unknown> | undefined;
+
+    // Extract photos from various possible locations
+    let photos: string[] = [];
+    if (Array.isArray(prop.photos)) {
+      photos = prop.photos.map((p: unknown) => typeof p === 'string' ? p : (p as Record<string, unknown>)?.url || (p as Record<string, unknown>)?.href || '').filter(Boolean);
+    } else if (Array.isArray(prop.carouselPhotos)) {
+      photos = (prop.carouselPhotos as Record<string, unknown>[]).map(p => (p.url || p.href || '') as string).filter(Boolean);
+    } else if (prop.imgSrc) {
+      photos = [prop.imgSrc as string];
+    } else if (prop.image) {
+      photos = [prop.image as string];
+    }
+
     return {
-      zpid: (prop.zpid || prop.id || prop.propertyId || 0) as number,
-      address: (prop.streetAddress || prop.address || addressObj?.streetAddress || "") as string,
-      city: (prop.city || prop.addressCity || addressObj?.city || "") as string,
-      state: (prop.state || prop.addressState || addressObj?.state || "") as string,
-      zipcode: (prop.zipcode || prop.addressZipcode || addressObj?.zipcode || "") as string,
-      price: (prop.price || prop.unformattedPrice || prop.listPrice || 0) as number,
-      bedrooms: (prop.bedrooms || prop.beds || 0) as number,
-      bathrooms: (prop.bathrooms || prop.baths || 0) as number,
-      livingArea: (prop.livingArea || prop.area || prop.livingAreaValue || 0) as number,
-      lotAreaValue: (prop.lotAreaValue || prop.lotSize || 0) as number,
+      zpid: (prop.zpid || prop.id || prop.propertyId || homeInfo?.zpid || 0) as number,
+      address: (prop.streetAddress || addressObj?.streetAddress || homeInfo?.streetAddress || "") as string,
+      city: (prop.city || prop.addressCity || addressObj?.city || homeInfo?.city || "") as string,
+      state: (prop.state || prop.addressState || addressObj?.state || homeInfo?.state || "") as string,
+      zipcode: (prop.zipcode || prop.addressZipcode || addressObj?.zipcode || homeInfo?.zipcode || "") as string,
+      price: (prop.price || prop.unformattedPrice || prop.listPrice || homeInfo?.price || 0) as number,
+      bedrooms: (prop.bedrooms || prop.beds || homeInfo?.bedrooms || 0) as number,
+      bathrooms: (prop.bathrooms || prop.baths || homeInfo?.bathrooms || 0) as number,
+      livingArea: (prop.livingArea || prop.area || prop.livingAreaValue || prop.sqft || homeInfo?.livingArea || 0) as number,
+      lotAreaValue: (prop.lotAreaValue || prop.lotSize || prop.lotAreaSqFt || homeInfo?.lotAreaValue || 0) as number,
       lotAreaUnit: (prop.lotAreaUnit || "sqft") as string,
-      homeType: (prop.homeType || prop.propertyType || prop.homeTypeDimension || "") as string,
-      homeStatus: (prop.homeStatus || prop.statusType || prop.listingStatus || "") as string,
-      daysOnZillow: (prop.daysOnZillow || prop.timeOnZillow || 0) as number,
-      rentZestimate: (prop.rentZestimate || null) as number | null,
-      zestimate: (prop.zestimate || null) as number | null,
-      imgSrc: (prop.imgSrc || prop.image || prop.hiResImageLink || prop.thumbnailUrl || "") as string,
-      detailUrl: (prop.detailUrl || prop.url || prop.hdpUrl || `https://www.zillow.com/homedetails/${prop.zpid || prop.id}_zpid/`) as string,
-      latitude: (prop.latitude || (prop.latLong as Record<string, unknown>)?.latitude || 0) as number,
-      longitude: (prop.longitude || (prop.latLong as Record<string, unknown>)?.longitude || 0) as number,
+      homeType: (prop.homeType || prop.propertyType || prop.homeTypeDimension || homeInfo?.homeType || "") as string,
+      homeStatus: (prop.homeStatus || prop.statusType || prop.listingStatus || homeInfo?.homeStatus || "") as string,
+      daysOnZillow: (prop.daysOnZillow || prop.timeOnZillow || homeInfo?.daysOnZillow || 0) as number,
+      rentZestimate: (prop.rentZestimate || homeInfo?.rentZestimate || null) as number | null,
+      zestimate: (prop.zestimate || homeInfo?.zestimate || null) as number | null,
+      imgSrc: (prop.imgSrc || prop.image || prop.hiResImageLink || prop.thumbnailUrl || photos[0] || "") as string,
+      detailUrl: (prop.detailUrl || prop.url || prop.hdpUrl || homeInfo?.hdpUrl || `https://www.zillow.com/homedetails/${prop.zpid || prop.id}_zpid/`) as string,
+      latitude: (prop.latitude || (prop.latLong as Record<string, unknown>)?.latitude || homeInfo?.latitude || 0) as number,
+      longitude: (prop.longitude || (prop.latLong as Record<string, unknown>)?.longitude || homeInfo?.longitude || 0) as number,
+      // Additional fields
+      yearBuilt: (prop.yearBuilt || prop.year_built || prop.yearBuiltRange || homeInfo?.yearBuilt || null) as number | null,
+      photos: photos,
+      description: (prop.description || prop.hdpDescription || homeInfo?.description || null) as string | null,
     };
   });
 

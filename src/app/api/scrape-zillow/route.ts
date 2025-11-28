@@ -1,7 +1,7 @@
 // src/app/api/scrape-zillow/route.ts
 import { NextRequest, NextResponse } from "next/server";
-import { searchByCity, searchProperties, zillowPropertyToDeal, ZillowSearchParams } from "@/lib/zillowScraper";
-import { upsertDeal, RawDealInput } from "@/lib/dealsIngest";
+import { searchByCity, searchProperties, zillowPropertyToDeal, ZillowSearchParams, ZillowProperty } from "@/lib/zillowScraper";
+import { upsertDeal } from "@/lib/dealsIngest";
 
 export type ScrapeZillowRequest = {
   city?: string;
@@ -21,13 +21,67 @@ export type ScrapeZillowRequest = {
   saveToDb?: boolean; // Whether to save results to database (default: true)
 };
 
+// Extended property type for API response with all fields
+export type ZillowPropertyResponse = {
+  address: string;
+  city: string;
+  state: string;
+  zipcode: string;
+  list_price: number;
+  rent_estimate: number | null;
+  url: string;
+  source: string;
+  source_url: string;
+  is_off_market: boolean;
+  status: string;
+  // Additional fields
+  beds: number;
+  baths: number;
+  sqft: number;
+  lot_size: number;
+  year_built: number | null;
+  property_type: string;
+  days_on_market: number;
+  photos: string[];
+  latitude: number;
+  longitude: number;
+};
+
 export type ScrapeZillowResponse = {
   success: boolean;
   totalResults: number;
   savedCount: number;
-  properties: RawDealInput[];
+  properties: ZillowPropertyResponse[];
   errors?: string[];
 };
+
+// Transform ZillowProperty to extended response format
+function zillowPropertyToResponse(prop: ZillowProperty): ZillowPropertyResponse {
+  return {
+    address: prop.address,
+    city: prop.city,
+    state: prop.state,
+    zipcode: prop.zipcode,
+    list_price: prop.price,
+    rent_estimate: prop.rentZestimate,
+    url: prop.detailUrl,
+    source: "zillow",
+    source_url: prop.detailUrl,
+    is_off_market: prop.homeStatus === "OFF_MARKET",
+    status: prop.homeStatus === "FOR_SALE" ? "active" : prop.homeStatus.toLowerCase(),
+    // Additional fields
+    beds: prop.bedrooms,
+    baths: prop.bathrooms,
+    sqft: prop.livingArea,
+    lot_size: prop.lotAreaValue,
+    year_built: prop.yearBuilt,
+    property_type: prop.homeType,
+    days_on_market: prop.daysOnZillow,
+    photos: prop.photos,
+    latitude: prop.latitude,
+    longitude: prop.longitude,
+  };
+}
 
 export async function POST(request: NextRequest) {
   try {
@@ -83,8 +137,8 @@ export async function POST(request: NextRequest) {
       searchResults = await searchProperties(params);
     }
 
-    // Transform properties to deals
-    const deals = searchResults.props.map(zillowPropertyToDeal);
+    // Transform properties to extended response format
+    const properties = searchResults.props.map(zillowPropertyToResponse);
 
     // Save to database if requested (default: true)
     const saveToDb = body.saveToDb !== false;
@@ -92,13 +146,13 @@ export async function POST(request: NextRequest) {
     const errors: string[] = [];
 
     if (saveToDb) {
-      for (const deal of deals) {
+      for (const prop of searchResults.props) {
         try {
-          await upsertDeal(deal);
+          await upsertDeal(zillowPropertyToDeal(prop));
           savedCount++;
         } catch (error) {
           const errorMessage = error instanceof Error ? error.message : String(error);
-          errors.push(`Failed to save ${deal.address}: ${errorMessage}`);
+          errors.push(`Failed to save ${prop.address}: ${errorMessage}`);
         }
       }
     }
@@ -107,7 +161,7 @@ export async function POST(request: NextRequest) {
       success: true,
       totalResults: searchResults.totalResultCount,
       savedCount,
-      properties: deals,
+      properties,
     };
 
     if (errors.length > 0) {
@@ -177,19 +231,19 @@ export async function GET(request: NextRequest) {
       searchResults = await searchProperties({ location: location!, ...options });
     }
 
-    const deals = searchResults.props.map(zillowPropertyToDeal);
+    const properties = searchResults.props.map(zillowPropertyToResponse);
 
     let savedCount = 0;
     const errors: string[] = [];
 
     if (saveToDb) {
-      for (const deal of deals) {
+      for (const prop of searchResults.props) {
         try {
-          await upsertDeal(deal);
+          await upsertDeal(zillowPropertyToDeal(prop));
           savedCount++;
         } catch (error) {
           const errorMessage = error instanceof Error ? error.message : String(error);
-          errors.push(`Failed to save ${deal.address}: ${errorMessage}`);
+          errors.push(`Failed to save ${prop.address}: ${errorMessage}`);
         }
       }
     }
@@ -198,7 +252,7 @@ export async function GET(request: NextRequest) {
       success: true,
       totalResults: searchResults.totalResultCount,
       savedCount,
-      properties: deals,
+      properties,
     };
 
     if (errors.length > 0) {
