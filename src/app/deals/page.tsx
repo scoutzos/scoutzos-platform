@@ -14,7 +14,7 @@ export default function DealsPage() {
             try {
                 const res = await fetch('/api/deals');
                 const data = await res.json();
-                setDeals(data);
+                setDeals(data.deals || []);
             } catch (error) {
                 console.error('Failed to fetch deals:', error);
             } finally {

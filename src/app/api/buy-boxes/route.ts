@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 
 export async function GET() {
-    const supabase = createClient();
+    const supabase = await createClient();
 
     const { data: buyBoxes, error } = await supabase
         .from('buy_boxes')
@@ -17,7 +17,7 @@ export async function GET() {
 }
 
 export async function POST(request: Request) {
-    const supabase = createClient();
+    const supabase = await createClient();
     const body = await request.json();
 
     const { data: { user } } = await supabase.auth.getUser();

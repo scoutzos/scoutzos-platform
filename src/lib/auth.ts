@@ -1,6 +1,6 @@
-import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
+import { createClient } from '@/lib/supabase/client';
 
-export const supabase = createClientComponentClient();
+export const supabase = createClient();
 
 export const signOut = async () => {
     await supabase.auth.signOut();

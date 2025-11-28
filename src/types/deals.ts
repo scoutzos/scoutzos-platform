@@ -30,6 +30,8 @@ export interface Deal {
     listing_brokerage?: string;
     hoa_monthly?: number;
     tax_annual?: number;
+    insurance_annual?: number;
+    estimated_rent?: number;
     status: DealStatus;
     scraped_at?: string;
     last_updated_at?: string;

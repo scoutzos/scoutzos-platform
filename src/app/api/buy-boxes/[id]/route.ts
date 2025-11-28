@@ -6,7 +6,7 @@ export async function GET(
     { params }: { params: Promise<{ id: string }> }
 ) {
     const id = (await params).id;
-    const supabase = createClient();
+    const supabase = await createClient();
 
     const { data: buyBox, error } = await supabase
         .from('buy_boxes')
@@ -26,7 +26,7 @@ export async function PUT(
     { params }: { params: Promise<{ id: string }> }
 ) {
     const id = (await params).id;
-    const supabase = createClient();
+    const supabase = await createClient();
     const body = await request.json();
 
     const { data, error } = await supabase
@@ -48,7 +48,7 @@ export async function DELETE(
     { params }: { params: Promise<{ id: string }> }
 ) {
     const id = (await params).id;
-    const supabase = createClient();
+    const supabase = await createClient();
 
     const { error } = await supabase
         .from('buy_boxes')

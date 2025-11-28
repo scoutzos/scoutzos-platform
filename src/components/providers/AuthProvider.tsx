@@ -1,7 +1,8 @@
 'use client';
 
 import { createContext, useContext, useEffect, useState } from 'react';
-import { createClientComponentClient, Session } from '@supabase/auth-helpers-nextjs';
+import { createClient } from '@/lib/supabase/client';
+import { Session } from '@supabase/supabase-js';
 import { useRouter } from 'next/navigation';
 
 type AuthContextType = {
@@ -22,7 +23,7 @@ export default function AuthProvider({ children }: { children: React.ReactNode }
     const [session, setSession] = useState<Session | null>(null);
     const [loading, setLoading] = useState(true);
     const router = useRouter();
-    const supabase = createClientComponentClient();
+    const supabase = createClient();
 
     useEffect(() => {
         const getSession = async () => {
