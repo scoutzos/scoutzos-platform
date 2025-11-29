@@ -121,7 +121,7 @@ export default function ComparePage() {
         const dealPromises = ids.map(id =>
           fetch(`/api/deals/${id}`).then(res => {
             if (!res.ok) throw new Error(`Failed to fetch deal ${id}`);
-            return res.json();
+            return res.json().then(data => data.deal);
           })
         );
 
