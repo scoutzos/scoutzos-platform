@@ -1,8 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase/admin';
-import Anthropic from '@anthropic-ai/sdk';
+import OpenAI from 'openai';
 
-const anthropic = new Anthropic();
+// Initialize OpenAI if API key is available
+const openai = process.env.OPENAI_API_KEY
+    ? new OpenAI({ apiKey: process.env.OPENAI_API_KEY })
+    : null;
 
 interface AIInsights {
     summary: string;
@@ -65,17 +68,25 @@ export async function POST(
             .eq('deal_id', dealId)
             .single();
 
+        // Check if OpenAI is configured
+        if (!openai) {
+            return NextResponse.json(
+                { error: 'AI insights unavailable - OPENAI_API_KEY not configured' },
+                { status: 503 }
+            );
+        }
+
         // Build the prompt
         const prompt = buildPrompt(deal, metrics);
 
-        // Call Claude API
-        const message = await anthropic.messages.create({
-            model: 'claude-sonnet-4-20250514',
+        // Call OpenAI API
+        const completion = await openai.chat.completions.create({
+            model: 'gpt-4o-mini',
             max_tokens: 1024,
             messages: [{ role: 'user', content: prompt }],
         });
 
-        const responseText = message.content[0].type === 'text' ? message.content[0].text : '';
+        const responseText = completion.choices[0]?.message?.content || '';
         const insights = parseInsights(responseText);
 
         // Cache the insights
@@ -98,8 +109,18 @@ export async function POST(
         });
     } catch (error) {
         console.error('Advisor POST error:', error);
+
+        // Check for quota exceeded error
+        const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+        if (errorMessage.includes('quota') || errorMessage.includes('429')) {
+            return NextResponse.json(
+                { error: 'OpenAI quota exceeded - check your billing at platform.openai.com' },
+                { status: 429 }
+            );
+        }
+
         return NextResponse.json(
-            { error: 'Failed to generate insights', details: error instanceof Error ? error.message : 'Unknown error' },
+            { error: 'Failed to generate insights', details: errorMessage },
             { status: 500 }
         );
     }

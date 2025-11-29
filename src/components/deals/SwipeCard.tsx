@@ -77,8 +77,10 @@ export default function SwipeCard({ deal, onSwipe, metrics }: SwipeCardProps) {
             if (genData.insights) {
                 setAiInsights(genData.insights);
                 sessionStorage.setItem(insightsCacheKey, JSON.stringify(genData.insights));
+            } else if (genData.error?.includes('API_KEY')) {
+                setAiError('AI not configured - add OPENAI_API_KEY to .env.local');
             } else {
-                setAiError('Failed to generate insights');
+                setAiError(genData.error || 'Failed to generate insights');
             }
         } catch (err) {
             console.error('AI insights error:', err);
