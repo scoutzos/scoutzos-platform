@@ -2,8 +2,11 @@
 -- Created: 2025-11-29
 -- Description: Adds tables for Discovery Mode conversation sessions
 
+-- Drop existing table if it exists (to ensure clean state)
+DROP TABLE IF EXISTS discovery_sessions CASCADE;
+
 -- Create discovery_sessions table
-CREATE TABLE IF NOT EXISTS discovery_sessions (
+CREATE TABLE discovery_sessions (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
     status VARCHAR(50) NOT NULL DEFAULT 'INITIAL',
@@ -23,9 +26,9 @@ CREATE TABLE IF NOT EXISTS discovery_sessions (
 );
 
 -- Create indexes
-CREATE INDEX IF NOT EXISTS idx_discovery_sessions_user_id ON discovery_sessions(user_id);
-CREATE INDEX IF NOT EXISTS idx_discovery_sessions_status ON discovery_sessions(status);
-CREATE INDEX IF NOT EXISTS idx_discovery_sessions_last_activity ON discovery_sessions(last_activity DESC);
+CREATE INDEX idx_discovery_sessions_user_id ON discovery_sessions(user_id);
+CREATE INDEX idx_discovery_sessions_status ON discovery_sessions(status);
+CREATE INDEX idx_discovery_sessions_last_activity ON discovery_sessions(last_activity DESC);
 
 -- Enable RLS
 ALTER TABLE discovery_sessions ENABLE ROW LEVEL SECURITY;
