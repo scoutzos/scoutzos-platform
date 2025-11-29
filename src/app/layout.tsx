@@ -3,7 +3,7 @@ import { Inter, JetBrains_Mono } from "next/font/google";
 import "./globals.css";
 import AuthProvider from "@/components/providers/AuthProvider";
 import { ThemeProvider } from "@/components/providers/ThemeProvider";
-import Navbar from "@/components/layout/Navbar";
+import { ConditionalAppShell } from "@/components/layout/ConditionalAppShell";
 
 const inter = Inter({
   variable: "--font-inter",
@@ -34,8 +34,9 @@ export default function RootLayout({
       >
         <ThemeProvider>
           <AuthProvider>
-            <Navbar />
-            <main>{children}</main>
+            <ConditionalAppShell>
+              {children}
+            </ConditionalAppShell>
           </AuthProvider>
         </ThemeProvider>
       </body>
