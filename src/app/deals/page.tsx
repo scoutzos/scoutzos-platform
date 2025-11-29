@@ -6,7 +6,7 @@ import { useRouter } from 'next/navigation';
 import dynamic from 'next/dynamic';
 import { Deal, DealStatus } from '@/types/deals';
 import { formatCurrency } from '@/lib/services/underwriting';
-import { MoreVertical, Search, FileText, ArrowRight, Download, FileSpreadsheet } from 'lucide-react';
+import { MoreVertical, Search, FileText, ArrowRight, Download } from 'lucide-react';
 
 const DealMap = dynamic(() => import('@/components/deals/DealMap'), { ssr: false });
 
@@ -287,17 +287,10 @@ export default function DealsPage() {
                         Swipe
                     </Link>
                     <Link
-                        href="/deals/import/csv"
-                        className="flex items-center gap-2 rounded-lg bg-gray-100 px-3.5 py-2.5 text-sm font-semibold text-gray-700 hover:bg-gray-200 transition-colors"
-                    >
-                        <FileSpreadsheet className="w-4 h-4" />
-                        CSV Import
-                    </Link>
-                    <Link
                         href="/deals/import"
                         className="rounded-lg bg-brand-primary px-3.5 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-brand-primary-hover transition-colors"
                     >
-                        Import Deal
+                        Import Deals
                     </Link>
                 </div>
             </div>
