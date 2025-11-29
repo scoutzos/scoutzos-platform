@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useCallback } from 'react';
 import { Deal } from '@/types/deals';
 import { formatCurrency } from '@/lib/services/underwriting';
 
@@ -34,25 +34,26 @@ export default function SwipeCard({ deal, onSwipe, metrics }: SwipeCardProps) {
     const [aiError, setAiError] = useState<string | null>(null);
     const [photoIndex, setPhotoIndex] = useState(0);
     const cardRef = useRef<HTMLDivElement>(null);
+    const aiCallInProgress = useRef(false);
 
     // Cache key for AI insights
     const insightsCacheKey = `ai_insights_${deal.id}`;
 
-    // Load cached insights on mount
-    useEffect(() => {
+    const fetchAIInsights = useCallback(async () => {
+        if (aiCallInProgress.current) return;
+
+        // Check sessionStorage first
         const cached = sessionStorage.getItem(insightsCacheKey);
         if (cached) {
             try {
                 setAiInsights(JSON.parse(cached));
+                return;
             } catch {
-                // Invalid cache, ignore
+                // Invalid cache, continue to fetch
             }
         }
-    }, [insightsCacheKey]);
 
-    const fetchAIInsights = async () => {
-        if (aiInsights || aiLoading) return;
-
+        aiCallInProgress.current = true;
         setAiLoading(true);
         setAiError(null);
 
@@ -65,6 +66,7 @@ export default function SwipeCard({ deal, onSwipe, metrics }: SwipeCardProps) {
                 setAiInsights(checkData.insights);
                 sessionStorage.setItem(insightsCacheKey, JSON.stringify(checkData.insights));
                 setAiLoading(false);
+                aiCallInProgress.current = false;
                 return;
             }
 
@@ -83,8 +85,14 @@ export default function SwipeCard({ deal, onSwipe, metrics }: SwipeCardProps) {
             setAiError('Could not load AI insights');
         } finally {
             setAiLoading(false);
+            aiCallInProgress.current = false;
         }
-    };
+    }, [deal.id, insightsCacheKey]);
+
+    // Auto-fetch AI insights on mount
+    useEffect(() => {
+        fetchAIInsights();
+    }, [fetchAIInsights]);
 
     const handleDragStart = (clientX: number) => {
         if (showDetails) return; // Don't drag when details are open
@@ -337,72 +345,72 @@ export default function SwipeCard({ deal, onSwipe, metrics }: SwipeCardProps) {
                     </div>
                 )}
 
-                {/* AI Insights Toggle */}
-                <div className="mt-4">
-                    <button
-                        onClick={(e) => {
-                            e.stopPropagation();
-                            setShowDetails(!showDetails);
-                            if (!aiInsights && !aiLoading) {
-                                fetchAIInsights();
-                            }
-                        }}
-                        className="w-full py-2 px-4 bg-gradient-to-r from-indigo-500 to-purple-500 text-white rounded-lg font-medium text-sm flex items-center justify-center gap-2 hover:from-indigo-600 hover:to-purple-600 transition-all"
-                    >
-                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
-                        </svg>
-                        {showDetails ? 'Hide AI Insights' : 'Show AI Insights'}
-                    </button>
-                </div>
+                {/* AI Insights - Always visible, auto-generated */}
+                <div className="mt-4 p-4 bg-gradient-to-r from-indigo-50 to-purple-50 rounded-xl border border-indigo-100">
+                    {aiLoading && (
+                        <div className="flex items-center justify-center py-4">
+                            <svg className="animate-spin h-5 w-5 text-indigo-600" fill="none" viewBox="0 0 24 24">
+                                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                            </svg>
+                            <span className="ml-2 text-sm text-indigo-700">Generating AI insights...</span>
+                        </div>
+                    )}
 
-                {/* AI Insights Panel */}
-                {showDetails && (
-                    <div className="mt-4 p-4 bg-gradient-to-r from-indigo-50 to-purple-50 rounded-xl border border-indigo-100">
-                        {aiLoading && (
-                            <div className="flex items-center justify-center py-6">
-                                <svg className="animate-spin h-6 w-6 text-indigo-600" fill="none" viewBox="0 0 24 24">
-                                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                                </svg>
-                                <span className="ml-2 text-indigo-700">Analyzing deal...</span>
-                            </div>
-                        )}
+                    {aiError && !aiLoading && (
+                        <div className="text-center py-3">
+                            <p className="text-red-600 text-xs">{aiError}</p>
+                            <button
+                                onClick={(e) => { e.stopPropagation(); aiCallInProgress.current = false; fetchAIInsights(); }}
+                                className="mt-1 text-indigo-600 text-xs hover:underline"
+                            >
+                                Try Again
+                            </button>
+                        </div>
+                    )}
 
-                        {aiError && !aiLoading && (
-                            <div className="text-center py-4">
-                                <p className="text-red-600 text-sm">{aiError}</p>
-                                <button
-                                    onClick={(e) => { e.stopPropagation(); fetchAIInsights(); }}
-                                    className="mt-2 text-indigo-600 text-sm hover:underline"
-                                >
-                                    Try Again
-                                </button>
-                            </div>
-                        )}
-
-                        {aiInsights && !aiLoading && (
-                            <div className="space-y-4">
-                                {/* Recommendation Badge */}
-                                <div className="flex items-center justify-between">
-                                    <span className="text-xs font-semibold text-indigo-600 uppercase">AI Recommendation</span>
-                                    <span className={`px-3 py-1 rounded-full text-sm font-bold ${getRecommendationColor(aiInsights.recommendation)}`}>
-                                        {aiInsights.recommendation}
-                                    </span>
+                    {aiInsights && !aiLoading && (
+                        <div className="space-y-3">
+                            {/* Header with Recommendation */}
+                            <div className="flex items-center justify-between">
+                                <div className="flex items-center gap-1">
+                                    <svg className="w-4 h-4 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+                                    </svg>
+                                    <span className="text-xs font-semibold text-indigo-600 uppercase">AI Analysis</span>
                                 </div>
+                                <span className={`px-2.5 py-0.5 rounded-full text-xs font-bold ${getRecommendationColor(aiInsights.recommendation)}`}>
+                                    {aiInsights.recommendation}
+                                </span>
+                            </div>
 
-                                {/* Summary */}
-                                <p className="text-sm text-gray-700 italic">&ldquo;{aiInsights.summary}&rdquo;</p>
+                            {/* Summary */}
+                            <p className="text-xs text-gray-700 italic leading-relaxed">&ldquo;{aiInsights.summary}&rdquo;</p>
 
-                                {/* Strengths & Risks */}
-                                <div className="grid grid-cols-2 gap-3">
+                            {/* Toggle for details */}
+                            <button
+                                onClick={(e) => {
+                                    e.stopPropagation();
+                                    setShowDetails(!showDetails);
+                                }}
+                                className="w-full text-xs text-indigo-600 hover:text-indigo-800 flex items-center justify-center gap-1"
+                            >
+                                {showDetails ? 'Hide Details' : 'Show Details'}
+                                <svg className={`w-3 h-3 transition-transform ${showDetails ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                                </svg>
+                            </button>
+
+                            {/* Detailed Strengths & Risks */}
+                            {showDetails && (
+                                <div className="grid grid-cols-2 gap-3 pt-2 border-t border-indigo-100">
                                     <div>
                                         <p className="text-xs font-semibold text-green-700 mb-1">Strengths</p>
                                         <ul className="space-y-1">
                                             {aiInsights.strengths.slice(0, 3).map((s, i) => (
                                                 <li key={i} className="text-xs text-gray-600 flex items-start">
-                                                    <span className="text-green-500 mr-1">✓</span>
-                                                    {s}
+                                                    <span className="text-green-500 mr-1 flex-shrink-0">✓</span>
+                                                    <span className="line-clamp-2">{s}</span>
                                                 </li>
                                             ))}
                                         </ul>
@@ -412,17 +420,17 @@ export default function SwipeCard({ deal, onSwipe, metrics }: SwipeCardProps) {
                                         <ul className="space-y-1">
                                             {aiInsights.risks.slice(0, 3).map((r, i) => (
                                                 <li key={i} className="text-xs text-gray-600 flex items-start">
-                                                    <span className="text-red-500 mr-1">⚠</span>
-                                                    {r}
+                                                    <span className="text-red-500 mr-1 flex-shrink-0">⚠</span>
+                                                    <span className="line-clamp-2">{r}</span>
                                                 </li>
                                             ))}
                                         </ul>
                                     </div>
                                 </div>
-                            </div>
-                        )}
-                    </div>
-                )}
+                            )}
+                        </div>
+                    )}
+                </div>
             </div>
         </div>
     );
