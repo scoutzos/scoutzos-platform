@@ -6,6 +6,7 @@ import { Deal } from '@/types/deals';
 import { QuickEditForm } from './QuickEditForm';
 import { calculateSmartRentEstimate, getConfidenceColor, getConfidenceBgColor, SmartRentEstimate } from '@/lib/rentCast';
 import { VoiceChat } from '@/components/ui/VoiceChat';
+import ScenarioBuilder from './ScenarioBuilder';
 
 interface AnalysisTabProps {
     dealId: string;
@@ -357,8 +358,8 @@ export default function AnalysisTab({ dealId, dealData }: AnalysisTabProps) {
                         <button
                             onClick={() => setVoiceEnabled(!voiceEnabled)}
                             className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-medium transition-colors ${voiceEnabled
-                                    ? 'bg-green-100 text-green-800 hover:bg-green-200'
-                                    : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                                ? 'bg-green-100 text-green-800 hover:bg-green-200'
+                                : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
                                 }`}
                             title={voiceEnabled ? 'Disable voice' : 'Enable voice'}
                         >
@@ -479,224 +480,242 @@ export default function AnalysisTab({ dealId, dealData }: AnalysisTabProps) {
                     )}
                 </div>
             </div>
+        </div>
 
-            {/* Collapsible Assumptions Panel */}
-            <div className="bg-white rounded-lg shadow border border-gray-200">
-                <button
-                    onClick={() => setAssumptionsOpen(!assumptionsOpen)}
-                    className="w-full px-4 py-3 flex items-center justify-between text-left hover:bg-gray-50 transition-colors"
+            {/* Scenario Builder */ }
+    {
+        analysis && (
+            <ScenarioBuilder
+                dealId={dealId}
+                baseAssumptions={{
+                    purchase_price: analysis.purchasePrice,
+                    estimated_rent: dealData?.estimated_rent || analysis.estimatedRent,
+                    interest_rate: analysis.assumptions.interestRate,
+                    down_payment_pct: 100 - analysis.assumptions.loanToValue
+                }}
+            />
+        )
+    }
+
+    {/* Collapsible Assumptions Panel */ }
+    <div className="bg-white rounded-lg shadow border border-gray-200">
+        <button
+            onClick={() => setAssumptionsOpen(!assumptionsOpen)}
+            className="w-full px-4 py-3 flex items-center justify-between text-left hover:bg-gray-50 transition-colors"
+        >
+            <div className="flex items-center gap-2">
+                <svg
+                    className={`h-5 w-5 text-gray-500 transition-transform ${assumptionsOpen ? 'rotate-90' : ''}`}
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
                 >
-                    <div className="flex items-center gap-2">
-                        <svg
-                            className={`h-5 w-5 text-gray-500 transition-transform ${assumptionsOpen ? 'rotate-90' : ''}`}
-                            fill="none"
-                            viewBox="0 0 24 24"
-                            stroke="currentColor"
-                        >
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                        </svg>
-                        <span className="text-sm font-semibold text-gray-900">Assumptions</span>
-                        {isModified && (
-                            <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-amber-100 text-amber-800">
-                                Modified
-                            </span>
-                        )}
-                    </div>
-                    {isModified && (
-                        <button
-                            onClick={(e) => {
-                                e.stopPropagation();
-                                handleReset();
-                            }}
-                            className="text-sm text-gray-500 hover:text-gray-700 underline"
-                        >
-                            Reset
-                        </button>
-                    )}
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                </svg>
+                <span className="text-sm font-semibold text-gray-900">Assumptions</span>
+                {isModified && (
+                    <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-amber-100 text-amber-800">
+                        Modified
+                    </span>
+                )}
+            </div>
+            {isModified && (
+                <button
+                    onClick={(e) => {
+                        e.stopPropagation();
+                        handleReset();
+                    }}
+                    className="text-sm text-gray-500 hover:text-gray-700 underline"
+                >
+                    Reset
                 </button>
+            )}
+        </button>
 
-                {assumptionsOpen && (
-                    <div className="px-4 pb-4 border-t border-gray-100">
-                        <div className="grid grid-cols-2 md:grid-cols-3 gap-4 mt-4">
-                            <div>
-                                <label className="block text-xs font-medium text-gray-500 mb-1">Interest Rate</label>
-                                <div className="flex items-center">
-                                    <input
-                                        type="number"
-                                        step="0.1"
-                                        value={assumptions.interestRate}
-                                        onChange={(e) => handleAssumptionChange('interestRate', e.target.value)}
-                                        className="w-20 rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 text-sm border p-2"
-                                    />
-                                    <span className="ml-1 text-sm text-gray-500">%</span>
-                                </div>
-                            </div>
-                            <div>
-                                <label className="block text-xs font-medium text-gray-500 mb-1">Vacancy</label>
-                                <div className="flex items-center">
-                                    <input
-                                        type="number"
-                                        step="1"
-                                        value={assumptions.vacancyRate}
-                                        onChange={(e) => handleAssumptionChange('vacancyRate', e.target.value)}
-                                        className="w-20 rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 text-sm border p-2"
-                                    />
-                                    <span className="ml-1 text-sm text-gray-500">%</span>
-                                </div>
-                            </div>
-                            <div>
-                                <label className="block text-xs font-medium text-gray-500 mb-1">LTV</label>
-                                <div className="flex items-center">
-                                    <input
-                                        type="number"
-                                        step="1"
-                                        value={assumptions.loanToValue}
-                                        onChange={(e) => handleAssumptionChange('loanToValue', e.target.value)}
-                                        className="w-20 rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 text-sm border p-2"
-                                    />
-                                    <span className="ml-1 text-sm text-gray-500">%</span>
-                                </div>
-                            </div>
-                            <div>
-                                <label className="block text-xs font-medium text-gray-500 mb-1">Management</label>
-                                <div className="flex items-center">
-                                    <input
-                                        type="number"
-                                        step="1"
-                                        value={assumptions.managementRate}
-                                        onChange={(e) => handleAssumptionChange('managementRate', e.target.value)}
-                                        className="w-20 rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 text-sm border p-2"
-                                    />
-                                    <span className="ml-1 text-sm text-gray-500">%</span>
-                                </div>
-                            </div>
-                            <div>
-                                <label className="block text-xs font-medium text-gray-500 mb-1">Maintenance</label>
-                                <div className="flex items-center">
-                                    <input
-                                        type="number"
-                                        step="1"
-                                        value={assumptions.maintenanceRate}
-                                        onChange={(e) => handleAssumptionChange('maintenanceRate', e.target.value)}
-                                        className="w-20 rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 text-sm border p-2"
-                                    />
-                                    <span className="ml-1 text-sm text-gray-500">%</span>
-                                </div>
-                            </div>
-                            <div>
-                                <label className="block text-xs font-medium text-gray-500 mb-1">CapEx</label>
-                                <div className="flex items-center">
-                                    <input
-                                        type="number"
-                                        step="1"
-                                        value={assumptions.capexRate}
-                                        onChange={(e) => handleAssumptionChange('capexRate', e.target.value)}
-                                        className="w-20 rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 text-sm border p-2"
-                                    />
-                                    <span className="ml-1 text-sm text-gray-500">%</span>
-                                </div>
-                            </div>
+        {assumptionsOpen && (
+            <div className="px-4 pb-4 border-t border-gray-100">
+                <div className="grid grid-cols-2 md:grid-cols-3 gap-4 mt-4">
+                    <div>
+                        <label className="block text-xs font-medium text-gray-500 mb-1">Interest Rate</label>
+                        <div className="flex items-center">
+                            <input
+                                type="number"
+                                step="0.1"
+                                value={assumptions.interestRate}
+                                onChange={(e) => handleAssumptionChange('interestRate', e.target.value)}
+                                className="w-20 rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 text-sm border p-2"
+                            />
+                            <span className="ml-1 text-sm text-gray-500">%</span>
                         </div>
+                    </div>
+                    <div>
+                        <label className="block text-xs font-medium text-gray-500 mb-1">Vacancy</label>
+                        <div className="flex items-center">
+                            <input
+                                type="number"
+                                step="1"
+                                value={assumptions.vacancyRate}
+                                onChange={(e) => handleAssumptionChange('vacancyRate', e.target.value)}
+                                className="w-20 rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 text-sm border p-2"
+                            />
+                            <span className="ml-1 text-sm text-gray-500">%</span>
+                        </div>
+                    </div>
+                    <div>
+                        <label className="block text-xs font-medium text-gray-500 mb-1">LTV</label>
+                        <div className="flex items-center">
+                            <input
+                                type="number"
+                                step="1"
+                                value={assumptions.loanToValue}
+                                onChange={(e) => handleAssumptionChange('loanToValue', e.target.value)}
+                                className="w-20 rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 text-sm border p-2"
+                            />
+                            <span className="ml-1 text-sm text-gray-500">%</span>
+                        </div>
+                    </div>
+                    <div>
+                        <label className="block text-xs font-medium text-gray-500 mb-1">Management</label>
+                        <div className="flex items-center">
+                            <input
+                                type="number"
+                                step="1"
+                                value={assumptions.managementRate}
+                                onChange={(e) => handleAssumptionChange('managementRate', e.target.value)}
+                                className="w-20 rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 text-sm border p-2"
+                            />
+                            <span className="ml-1 text-sm text-gray-500">%</span>
+                        </div>
+                    </div>
+                    <div>
+                        <label className="block text-xs font-medium text-gray-500 mb-1">Maintenance</label>
+                        <div className="flex items-center">
+                            <input
+                                type="number"
+                                step="1"
+                                value={assumptions.maintenanceRate}
+                                onChange={(e) => handleAssumptionChange('maintenanceRate', e.target.value)}
+                                className="w-20 rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 text-sm border p-2"
+                            />
+                            <span className="ml-1 text-sm text-gray-500">%</span>
+                        </div>
+                    </div>
+                    <div>
+                        <label className="block text-xs font-medium text-gray-500 mb-1">CapEx</label>
+                        <div className="flex items-center">
+                            <input
+                                type="number"
+                                step="1"
+                                value={assumptions.capexRate}
+                                onChange={(e) => handleAssumptionChange('capexRate', e.target.value)}
+                                className="w-20 rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 text-sm border p-2"
+                            />
+                            <span className="ml-1 text-sm text-gray-500">%</span>
+                        </div>
+                    </div>
+                </div>
 
-                        {isModified && (
-                            <div className="mt-4 flex justify-center">
-                                <button
-                                    onClick={() => runAnalysis(assumptions)}
-                                    disabled={analyzing}
-                                    className="inline-flex items-center px-6 py-2 border border-transparent text-sm font-semibold rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
-                                >
-                                    {analyzing ? (
-                                        <>
-                                            <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" fill="none" viewBox="0 0 24 24">
-                                                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                                                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                                            </svg>
-                                            Recalculating...
-                                        </>
-                                    ) : (
-                                        'Recalculate Analysis'
-                                    )}
-                                </button>
-                            </div>
-                        )}
+                {isModified && (
+                    <div className="mt-4 flex justify-center">
+                        <button
+                            onClick={() => runAnalysis(assumptions)}
+                            disabled={analyzing}
+                            className="inline-flex items-center px-6 py-2 border border-transparent text-sm font-semibold rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
+                        >
+                            {analyzing ? (
+                                <>
+                                    <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" fill="none" viewBox="0 0 24 24">
+                                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                    </svg>
+                                    Recalculating...
+                                </>
+                            ) : (
+                                'Recalculate Analysis'
+                            )}
+                        </button>
                     </div>
                 )}
             </div>
+        )}
+    </div>
 
-            {/* Smart Rent Estimate Section */}
-            {smartRentEstimate && (
-                <div className="overflow-hidden rounded-lg bg-white shadow">
-                    <div className="px-4 py-5 sm:p-6">
-                        <div className="flex items-center justify-between mb-4">
-                            <h3 className="text-base font-semibold leading-6 text-gray-900">Rent Estimate</h3>
-                            <div className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getConfidenceBgColor(smartRentEstimate.confidence)} ${getConfidenceColor(smartRentEstimate.confidence)}`}>
-                                {smartRentEstimate.confidence === 'high' && '✓ High Confidence'}
-                                {smartRentEstimate.confidence === 'medium' && '◐ Medium Confidence'}
-                                {smartRentEstimate.confidence === 'low' && '⚠ Low Confidence'}
-                                {smartRentEstimate.confidence === 'estimated' && '⚠ Estimated'}
-                            </div>
+    {/* Smart Rent Estimate Section */ }
+    {
+        smartRentEstimate && (
+            <div className="overflow-hidden rounded-lg bg-white shadow">
+                <div className="px-4 py-5 sm:p-6">
+                    <div className="flex items-center justify-between mb-4">
+                        <h3 className="text-base font-semibold leading-6 text-gray-900">Rent Estimate</h3>
+                        <div className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getConfidenceBgColor(smartRentEstimate.confidence)} ${getConfidenceColor(smartRentEstimate.confidence)}`}>
+                            {smartRentEstimate.confidence === 'high' && '✓ High Confidence'}
+                            {smartRentEstimate.confidence === 'medium' && '◐ Medium Confidence'}
+                            {smartRentEstimate.confidence === 'low' && '⚠ Low Confidence'}
+                            {smartRentEstimate.confidence === 'estimated' && '⚠ Estimated'}
                         </div>
+                    </div>
 
-                        <div className="flex items-baseline gap-2">
-                            <span className="text-3xl font-bold text-gray-900">
-                                {formatCurrency(smartRentEstimate.estimatedRent)}
-                            </span>
-                            <span className="text-gray-500">/month</span>
+                    <div className="flex items-baseline gap-2">
+                        <span className="text-3xl font-bold text-gray-900">
+                            {formatCurrency(smartRentEstimate.estimatedRent)}
+                        </span>
+                        <span className="text-gray-500">/month</span>
+                    </div>
+
+                    <p className="mt-2 text-sm text-gray-600">{smartRentEstimate.displayNote}</p>
+
+                    {smartRentEstimate.variancePercent !== null && (
+                        <div className={`mt-3 flex items-center gap-2 text-sm ${smartRentEstimate.variancePercent > 20 ? 'text-orange-600' : smartRentEstimate.variancePercent > 10 ? 'text-yellow-600' : 'text-green-600'}`}>
+                            <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                            </svg>
+                            <span>Variance between sources: {smartRentEstimate.variancePercent}%</span>
                         </div>
+                    )}
 
-                        <p className="mt-2 text-sm text-gray-600">{smartRentEstimate.displayNote}</p>
+                    {smartRentEstimate.showBothEstimates && (
+                        <div className="mt-4 grid grid-cols-2 gap-4">
+                            {smartRentEstimate.sources.zillow && (
+                                <div className="bg-blue-50 rounded-lg p-3">
+                                    <div className="flex items-center gap-2">
+                                        <span className="inline-flex items-center rounded-full bg-blue-100 px-2 py-0.5 text-xs font-medium text-blue-700">Zillow</span>
+                                    </div>
+                                    <p className="mt-1 text-lg font-semibold text-blue-900">{formatCurrency(smartRentEstimate.sources.zillow)}</p>
+                                </div>
+                            )}
+                            {smartRentEstimate.sources.rentcast && (
+                                <div className="bg-green-50 rounded-lg p-3">
+                                    <div className="flex items-center gap-2">
+                                        <span className="inline-flex items-center rounded-full bg-green-100 px-2 py-0.5 text-xs font-medium text-green-700">RentCast</span>
+                                    </div>
+                                    <p className="mt-1 text-lg font-semibold text-green-900">{formatCurrency(smartRentEstimate.sources.rentcast)}</p>
+                                </div>
+                            )}
+                        </div>
+                    )}
 
-                        {smartRentEstimate.variancePercent !== null && (
-                            <div className={`mt-3 flex items-center gap-2 text-sm ${smartRentEstimate.variancePercent > 20 ? 'text-orange-600' : smartRentEstimate.variancePercent > 10 ? 'text-yellow-600' : 'text-green-600'}`}>
-                                <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    {smartRentEstimate.showWarning && smartRentEstimate.confidence === 'estimated' && (
+                        <div className="mt-4 bg-amber-50 border border-amber-200 rounded-lg p-3">
+                            <div className="flex items-start gap-2">
+                                <svg className="h-5 w-5 text-amber-500 mt-0.5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
                                 </svg>
-                                <span>Variance between sources: {smartRentEstimate.variancePercent}%</span>
-                            </div>
-                        )}
-
-                        {smartRentEstimate.showBothEstimates && (
-                            <div className="mt-4 grid grid-cols-2 gap-4">
-                                {smartRentEstimate.sources.zillow && (
-                                    <div className="bg-blue-50 rounded-lg p-3">
-                                        <div className="flex items-center gap-2">
-                                            <span className="inline-flex items-center rounded-full bg-blue-100 px-2 py-0.5 text-xs font-medium text-blue-700">Zillow</span>
-                                        </div>
-                                        <p className="mt-1 text-lg font-semibold text-blue-900">{formatCurrency(smartRentEstimate.sources.zillow)}</p>
-                                    </div>
-                                )}
-                                {smartRentEstimate.sources.rentcast && (
-                                    <div className="bg-green-50 rounded-lg p-3">
-                                        <div className="flex items-center gap-2">
-                                            <span className="inline-flex items-center rounded-full bg-green-100 px-2 py-0.5 text-xs font-medium text-green-700">RentCast</span>
-                                        </div>
-                                        <p className="mt-1 text-lg font-semibold text-green-900">{formatCurrency(smartRentEstimate.sources.rentcast)}</p>
-                                    </div>
-                                )}
-                            </div>
-                        )}
-
-                        {smartRentEstimate.showWarning && smartRentEstimate.confidence === 'estimated' && (
-                            <div className="mt-4 bg-amber-50 border border-amber-200 rounded-lg p-3">
-                                <div className="flex items-start gap-2">
-                                    <svg className="h-5 w-5 text-amber-500 mt-0.5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-                                    </svg>
-                                    <div>
-                                        <p className="text-sm font-medium text-amber-800">No Market Data Available</p>
-                                        <p className="text-xs text-amber-700 mt-1">
-                                            This estimate is calculated using the 0.7% rule (monthly rent = 0.7% of purchase price).
-                                            Consider getting a professional rent analysis for more accurate projections.
-                                        </p>
-                                    </div>
+                                <div>
+                                    <p className="text-sm font-medium text-amber-800">No Market Data Available</p>
+                                    <p className="text-xs text-amber-700 mt-1">
+                                        This estimate is calculated using the 0.7% rule (monthly rent = 0.7% of purchase price).
+                                        Consider getting a professional rent analysis for more accurate projections.
+                                    </p>
                                 </div>
                             </div>
-                        )}
-                    </div>
+                        </div>
+                    )}
                 </div>
-            )}
+            </div>
+        )
+    }
 
-            {/* KPI Cards */}
+    {/* KPI Cards */ }
             <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4">
                 <div className="overflow-hidden rounded-lg bg-white px-4 py-5 shadow sm:p-6">
                     <dt className="truncate text-sm font-medium text-gray-500">Cap Rate</dt>
@@ -800,6 +819,6 @@ export default function AnalysisTab({ dealId, dealData }: AnalysisTabProps) {
                 </div>
             </div>
 
-        </div>
+        </div >
     );
 }

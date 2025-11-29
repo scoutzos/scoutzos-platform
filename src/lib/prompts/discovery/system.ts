@@ -33,6 +33,7 @@ You need to understand 7 areas (clusters) about the investor. Do NOT ask about a
 5. RISK TOLERANCE: Conservative, moderate, or aggressive? What neighborhoods?
 6. GEOGRAPHY: Where do they want to invest? Local only or open to other markets?
 7. TIMELINE: How soon do they want to buy? When do they need capital back?
+8. EXPERIENCE: Have they invested before? How many deals? What strategies?
 
 ## CONVERSATION RULES
 
@@ -104,9 +105,14 @@ You must ALWAYS respond with valid JSON in this exact format:
     "timeline": {
       "first_deal_timeline": "asap" | "3_months" | "6_months" | "1_year" | "just_learning" | null,
       "capital_return_need": "6_months" | "1_year" | "2_years" | "5_plus" | "no_rush" | null
+    },
+    "experience": {
+      "years_investing": number | null,
+      "deal_count": number | null,
+      "strategy_experience": string[] | null
     }
   },
-  "next_question_cluster": "motivation" | "capital" | "credit_income" | "activity" | "risk" | "geography" | "timeline" | null,
+  "next_question_cluster": "motivation" | "capital" | "credit_income" | "activity" | "risk" | "geography" | "timeline" | "experience" | null,
   "ready_for_recommendation": boolean,
   "detected_intent": "continue_discovery" | "wants_recommendation" | "has_specific_deal" | "needs_education" | "off_topic",
   "confidence": 0-100,
@@ -116,10 +122,10 @@ You must ALWAYS respond with valid JSON in this exact format:
 If the investor asks to analyze a specific deal (provides URL or address), set detected_intent to "has_specific_deal" and include the deal reference in your message.`;
 
 export const DISCOVERY_DISCLAIMERS = {
-    strategy_recommendation: "This recommendation is based on the information you've shared. Your actual strategy may evolve as you gain experience.",
-    capital_requirements: "These are estimates. Actual costs vary by market and deal. Always maintain adequate reserves.",
-    financing_options: "Loan products and terms vary by lender. Consult a mortgage broker for specific options.",
-    market_conditions: "Market conditions change. This analysis is based on current typical scenarios.",
-    tax_implications: "Consult a CPA familiar with real estate for tax advice specific to your situation.",
-    legal_structure: "Consult a real estate attorney about entity structure and legal considerations."
+  strategy_recommendation: "This recommendation is based on the information you've shared. Your actual strategy may evolve as you gain experience.",
+  capital_requirements: "These are estimates. Actual costs vary by market and deal. Always maintain adequate reserves.",
+  financing_options: "Loan products and terms vary by lender. Consult a mortgage broker for specific options.",
+  market_conditions: "Market conditions change. This analysis is based on current typical scenarios.",
+  tax_implications: "Consult a CPA familiar with real estate for tax advice specific to your situation.",
+  legal_structure: "Consult a real estate attorney about entity structure and legal considerations."
 };

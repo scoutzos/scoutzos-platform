@@ -58,6 +58,7 @@ export {
   createBuyBoxSchema,
   updateBuyBoxSchema,
   matchBuyBoxSchema,
+  scenarioAnalysisSchema,
   // Types
   type StartDiscoveryInput,
   type RespondDiscoveryInput,
@@ -68,4 +69,5 @@ export {
   type CreateBuyBoxInput,
   type UpdateBuyBoxInput,
   type MatchBuyBoxInput,
+  type ScenarioAnalysisInput,
 } from './validation';

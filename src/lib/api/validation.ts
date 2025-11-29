@@ -197,6 +197,21 @@ export const matchBuyBoxSchema = z.object({
   include_metrics: z.boolean().optional().default(true),
 });
 
+export const scenarioAnalysisSchema = z.object({
+  scenario_name: z.string().min(1, 'Scenario name is required'),
+  assumptions: z.object({
+    vacancy_rate: z.number().min(0).max(1).optional(),
+    maintenance_rate: z.number().min(0).max(1).optional(),
+    capex_rate: z.number().min(0).max(1).optional(),
+    management_rate: z.number().min(0).max(1).optional(),
+    down_payment_pct: z.number().min(0).max(1).optional(),
+    interest_rate: z.number().min(0).max(1).optional(),
+    loan_term_years: z.number().int().min(1).max(40).optional(),
+    estimated_rent: z.number().positive().optional(),
+    purchase_price: z.number().positive().optional(),
+  }),
+});
+
 // Type exports
 export type StartDiscoveryInput = z.infer<typeof startDiscoverySchema>;
 export type RespondDiscoveryInput = z.infer<typeof respondDiscoverySchema>;
@@ -207,3 +222,4 @@ export type CompareDealsInput = z.infer<typeof compareDealsSchema>;
 export type CreateBuyBoxInput = z.infer<typeof createBuyBoxSchema>;
 export type UpdateBuyBoxInput = z.infer<typeof updateBuyBoxSchema>;
 export type MatchBuyBoxInput = z.infer<typeof matchBuyBoxSchema>;
+export type ScenarioAnalysisInput = z.infer<typeof scenarioAnalysisSchema>;

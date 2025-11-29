@@ -35,12 +35,17 @@ export interface InvestorProfile {
         first_deal_timeline: 'asap' | '3_months' | '6_months' | '1_year' | 'just_learning' | null;
         capital_return_need: '6_months' | '1_year' | '2_years' | '5_plus' | 'no_rush' | null;
     };
+    experience: {
+        years_investing: number | null;
+        deal_count: number | null;
+        strategy_experience: string[] | null;
+    };
 }
 
 export interface DiscoveryModeResponse {
     message: string;
     extracted_data: Partial<InvestorProfile>;
-    next_question_cluster: 'motivation' | 'capital' | 'credit_income' | 'activity' | 'risk' | 'geography' | 'timeline' | null;
+    next_question_cluster: 'motivation' | 'capital' | 'credit_income' | 'activity' | 'risk' | 'geography' | 'timeline' | 'experience' | null;
     ready_for_recommendation: boolean;
     detected_intent: 'continue_discovery' | 'wants_recommendation' | 'has_specific_deal' | 'needs_education' | 'off_topic';
     confidence: number;
@@ -117,7 +122,8 @@ export function calculateProfileCompleteness(profile: Partial<InvestorProfile>):
         activity: !!profile.activity?.time_available,
         risk: !!profile.risk?.risk_comfort,
         geography: !!profile.geography?.home_market,
-        timeline: !!profile.timeline?.first_deal_timeline
+        timeline: !!profile.timeline?.first_deal_timeline,
+        experience: !!profile.experience?.years_investing || !!profile.experience?.deal_count
     };
 
     const clustersComplete = Object.values(clusters).filter(Boolean).length;
@@ -140,6 +146,7 @@ export function getNextPriorityCluster(profile: Partial<InvestorProfile>): strin
         'geography',
         'timeline',
         'credit_income',
+        'experience',
         'activity',
         'risk'
     ];

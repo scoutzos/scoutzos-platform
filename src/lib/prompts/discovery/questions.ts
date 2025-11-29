@@ -50,11 +50,18 @@ export const QUESTION_PATTERNS = {
     },
 
     timeline: {
-        first_deal: "How soon are you looking to make your first purchase—ready to move now, within 3-6 months, or still in learning mode?",
+        first_deal_timeline: "How soon are you looking to make your first purchase—ready to move now, within 3-6 months, or still in learning mode?",
         readiness: "If we found the right deal this week, would you be ready to move on it, or do you need more time to prepare?",
         capital_return: "How soon do you need to see your money come back—within 6 months, a year, or are you fine with it being tied up longer for a bigger payoff?",
         strategy_confirmation_flip: "With a flip, your money comes back when you sell—usually 6-10 months. Does that timeline work for your situation?",
         strategy_confirmation_hold: "If you're holding long-term, your cash stays in the property as equity. Is that okay, or do you want a strategy where you can pull your capital back out?"
+    },
+
+    experience: {
+        initial: "Have you invested in real estate before, or would this be your first deal?",
+        project_types: "What kind of projects have you done—long-term rentals, flips, or something else?",
+        renovation_depth: "How heavy were the renovations on those projects—cosmetic updates or full gut jobs?",
+        zero_experience: "Since this is your first deal, are you looking for something turnkey, or are you willing to take on a project to build equity?"
     }
 };
 
@@ -87,6 +94,17 @@ export function getQuestionForCluster(
             return capitalPatterns.after_goal.replace('{goal}', context.profile.motivation.primary_goal);
         }
         return capitalPatterns.direct;
+    }
+
+    if (cluster === 'experience') {
+        const experiencePatterns = patterns as typeof QUESTION_PATTERNS.experience;
+        if (context.profile?.experience?.deal_count && context.profile.experience.deal_count > 0) {
+            return experiencePatterns.project_types;
+        }
+        if (context.profile?.experience?.deal_count === 0) {
+            return experiencePatterns.zero_experience;
+        }
+        return experiencePatterns.initial;
     }
 
     // Default to first pattern

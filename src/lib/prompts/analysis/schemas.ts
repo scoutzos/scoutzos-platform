@@ -99,3 +99,38 @@ export function calculateConfidence(
     const rawScore = (dataCompleteness * 0.4) + (dataQuality * 0.3) + (dealClarity * 0.3);
     return Math.round(rawScore * 100);
 }
+
+export interface ScenarioResponse {
+    scenario_name: string;
+    base_case: {
+        monthly_cash_flow: number;
+        cash_on_cash: number;
+        cap_rate: number;
+    };
+    scenario_case: {
+        monthly_cash_flow: number;
+        cash_on_cash: number;
+        cap_rate: number;
+    };
+    delta: {
+        monthly_cash_flow: number;
+        cash_on_cash: number;
+        cap_rate: number;
+    };
+    analysis: string;
+}
+
+export function validateScenarioResponse(response: any): { valid: boolean; errors: string[] } {
+    const errors: string[] = [];
+
+    if (!response.scenario_name) errors.push('Missing scenario_name');
+    if (!response.base_case) errors.push('Missing base_case');
+    if (!response.scenario_case) errors.push('Missing scenario_case');
+    if (!response.delta) errors.push('Missing delta');
+    if (!response.analysis) errors.push('Missing analysis');
+
+    return {
+        valid: errors.length === 0,
+        errors
+    };
+}
