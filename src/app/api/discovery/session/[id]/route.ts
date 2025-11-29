@@ -48,7 +48,7 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
       .single();
 
     if (sessionError || !sessionData) {
-      return notFound('Session', ctx);
+      return notFound(ctx, 'Session not found');
     }
 
     // Calculate profile completeness

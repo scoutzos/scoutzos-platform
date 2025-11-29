@@ -138,6 +138,50 @@ const FALLBACK_RESPONSES: Record<string, DiscoveryModeResponse> = {
       'I want to flip properties',
     ],
   },
+  education_credit: {
+    message: "No problem - credit scores can be confusing! Your credit score (300-850) affects what loans you qualify for. Above 740 gets the best rates, 700+ is good, and below 660 limits options but doesn't mean you can't invest. Would you say your credit is excellent, good, fair, or needs some work?",
+    extracted_data: {},
+    next_question_cluster: 'credit_income',
+    ready_for_recommendation: false,
+    detected_intent: 'needs_education',
+    confidence: 60,
+    suggested_responses: [
+      'Excellent (740+)',
+      'Good (700-739)',
+      'Fair (660-699)',
+      'Needs work (below 660)',
+    ],
+    education_topic: 'credit_score',
+  },
+  education_brrrr: {
+    message: "BRRRR stands for Buy, Rehab, Rent, Refinance, Repeat. You buy a fixer-upper, renovate it, rent it out, then refinance to pull your cash back out and use it to buy another property. It's a way to recycle your capital into multiple properties. Does that strategy sound interesting to you?",
+    extracted_data: {},
+    next_question_cluster: 'motivation',
+    ready_for_recommendation: false,
+    detected_intent: 'needs_education',
+    confidence: 60,
+    suggested_responses: [
+      'Yes, I want to build a portfolio',
+      "No, I'd prefer something simpler",
+      'Tell me more about other strategies',
+    ],
+    education_topic: 'brrrr',
+  },
+  education_reserves: {
+    message: "Reserves are money you keep liquid for emergencies - repairs, vacancies, unexpected costs. Most lenders want to see 3-6 months of payments in reserve. After your down payment and closing costs, how much would you want to keep available for surprises?",
+    extracted_data: {},
+    next_question_cluster: 'capital',
+    ready_for_recommendation: false,
+    detected_intent: 'needs_education',
+    confidence: 60,
+    suggested_responses: [
+      'Around $10,000',
+      '$10,000 - $25,000',
+      '$25,000 or more',
+      "I'm not sure yet",
+    ],
+    education_topic: 'reserves',
+  },
 };
 
 export async function POST(request: NextRequest) {
@@ -194,18 +238,26 @@ export async function POST(request: NextRequest) {
       message_count: sessionData.message_count || 0,
       created_at: sessionData.created_at,
       last_activity: sessionData.last_activity,
+      last_asked_cluster: sessionData.last_asked_cluster,
+      education_given: sessionData.education_given || [],
     };
 
     const stateManager = new SessionStateManager(session);
 
-    // Add user message to history
-    stateManager.addMessage('user', body.message);
+    // Detect uncertainty before adding to history (for education tracking)
+    const uncertainty = stateManager.detectUncertainty(body.message);
 
-    // Build AI context
-    const developerMessage = stateManager.buildDeveloperMessage();
+    // Add user message to history with metadata
+    stateManager.addMessage('user', body.message, {
+      intent: uncertainty.isUncertain ? 'needs_education' : 'continue_discovery',
+    });
+
+    // Build AI context with user message for compound/uncertainty detection
+    const developerMessage = stateManager.buildDeveloperMessage(body.message);
     const conversationHistory = stateManager.formatHistoryForAI(10);
 
     let aiResponse: DiscoveryModeResponse;
+    let educationProvided: string | null = null;
 
     if (openai) {
       try {
@@ -267,8 +319,26 @@ export async function POST(request: NextRequest) {
       stateManager.updateProfile(aiResponse.extracted_data as Partial<InvestorProfile>);
     }
 
-    // Add AI response to history
-    stateManager.addMessage('assistant', aiResponse.message);
+    // Track which cluster was asked about
+    if (aiResponse.next_question_cluster) {
+      stateManager.setLastAskedCluster(aiResponse.next_question_cluster);
+    }
+
+    // Track education provided
+    if (aiResponse.detected_intent === 'needs_education' && aiResponse.education_topic) {
+      stateManager.recordEducationGiven(aiResponse.education_topic);
+      educationProvided = aiResponse.education_topic;
+    } else if (uncertainty.isUncertain && uncertainty.educationTopic) {
+      // If AI didn't explicitly track education, but we detected uncertainty
+      stateManager.recordEducationGiven(uncertainty.educationTopic);
+      educationProvided = uncertainty.educationTopic;
+    }
+
+    // Add AI response to history with metadata
+    stateManager.addMessage('assistant', aiResponse.message, {
+      cluster_asked: aiResponse.next_question_cluster || undefined,
+      intent: aiResponse.detected_intent,
+    });
 
     // Check if ready for recommendation
     const isReady = stateManager.checkReadiness();
@@ -300,6 +370,8 @@ export async function POST(request: NextRequest) {
         message_count: updatedSession.message_count,
         last_activity: new Date().toISOString(),
         ui_state: body.ui_state || {},
+        last_asked_cluster: aiResponse.next_question_cluster || null,
+        education_given: updatedSession.education_given || [],
       })
       .eq('id', body.session_id);
 
@@ -307,6 +379,9 @@ export async function POST(request: NextRequest) {
       console.error('Failed to update session:', updateError);
       // Continue anyway - we have the data in memory
     }
+
+    // Analyze for compound answer info (for frontend feedback)
+    const compoundAnalysis = stateManager.analyzeCompoundAnswer(body.message);
 
     // Build response
     return success(
@@ -339,6 +414,20 @@ export async function POST(request: NextRequest) {
           ? {
               new_mode: 'analysis',
               deal_reference: aiResponse.deal_reference,
+            }
+          : null,
+        // Include education info if provided
+        education: educationProvided
+          ? {
+              topic: educationProvided,
+              provided: true,
+            }
+          : null,
+        // Include compound answer info
+        compound_answer: compoundAnalysis.hasMultipleTopics
+          ? {
+              detected: true,
+              topics: compoundAnalysis.detectedTopics,
             }
           : null,
       },
