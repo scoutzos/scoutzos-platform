@@ -18,6 +18,13 @@ export async function GET(request: NextRequest) {
         const sortOrder = searchParams.get('sortOrder') || 'desc';
         const status = searchParams.get('status'); // comma-separated status values
 
+        // Advanced filters
+        const minPrice = searchParams.get('minPrice');
+        const maxPrice = searchParams.get('maxPrice');
+        const propertyType = searchParams.get('propertyType');
+        const city = searchParams.get('city');
+        const search = searchParams.get('search');
+
         let query = supabaseAdmin.from('deals').select('*', { count: 'exact' }).eq('tenant_id', tenantId);
 
         // Filter by status if provided
@@ -26,12 +33,38 @@ export async function GET(request: NextRequest) {
             query = query.in('status', statuses);
         }
 
+        // Price range filters
+        if (minPrice) {
+            query = query.gte('list_price', parseFloat(minPrice));
+        }
+        if (maxPrice) {
+            query = query.lte('list_price', parseFloat(maxPrice));
+        }
+
+        // Property type filter
+        if (propertyType) {
+            query = query.eq('property_type', propertyType);
+        }
+
+        // City filter (case-insensitive partial match)
+        if (city) {
+            query = query.ilike('city', `%${city}%`);
+        }
+
+        // Full-text search across address fields
+        if (search) {
+            query = query.or(`address_line1.ilike.%${search}%,city.ilike.%${search}%,zip.ilike.%${search}%`);
+        }
+
         query = query.order(sortBy, { ascending: sortOrder === 'asc' });
         const from = (page - 1) * limit;
         query = query.range(from, from + limit - 1);
 
         const { data: deals, error, count } = await query;
-        if (error) return NextResponse.json({ error: 'Failed to fetch deals' }, { status: 500 });
+        if (error) {
+            console.error('[Deals API] Fetch error:', error);
+            return NextResponse.json({ error: 'Failed to fetch deals', details: error.message }, { status: 500 });
+        }
         return NextResponse.json({ deals: deals || [], pagination: { page, limit, total: count || 0, totalPages: Math.ceil((count || 0) / limit) } });
     } catch (error) {
         return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
@@ -53,7 +86,10 @@ export async function POST(request: NextRequest) {
         }
 
         const { data: deal, error } = await supabaseAdmin.from('deals').insert({ tenant_id: tenantId, ...body, status: 'new' }).select().single();
-        if (error) return NextResponse.json({ error: 'Failed to create deal' }, { status: 500 });
+        if (error) {
+            console.error('[Deals API] Create error:', error);
+            return NextResponse.json({ error: 'Failed to create deal', details: error.message }, { status: 500 });
+        }
 
         // Auto-match deal to all buy boxes (run in background, don't await)
         if (deal) {

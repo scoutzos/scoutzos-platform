@@ -83,10 +83,11 @@ export const startDiscoverySchema = z.object({
     .enum(['sidebar', 'deal_card', 'buy_box_edit', 'onboarding'])
     .optional()
     .default('sidebar'),
+  force_new: z.boolean().optional(),
   initial_context: z
     .object({
-      deal_id: z.string().uuid().optional(),
-      buy_box_id: z.string().uuid().optional(),
+      deal_id: z.string().optional(),
+      buy_box_id: z.string().optional(),
     })
     .optional(),
 });

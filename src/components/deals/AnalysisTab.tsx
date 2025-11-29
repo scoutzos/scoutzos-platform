@@ -5,6 +5,7 @@ import { UnderwritingResult, formatCurrency, formatPercent, getRatingColor, getR
 import { Deal } from '@/types/deals';
 import { QuickEditForm } from './QuickEditForm';
 import { calculateSmartRentEstimate, getConfidenceColor, getConfidenceBgColor, SmartRentEstimate } from '@/lib/rentCast';
+import { VoiceChat } from '@/components/ui/VoiceChat';
 
 interface AnalysisTabProps {
     dealId: string;
@@ -37,6 +38,7 @@ export default function AnalysisTab({ dealId, dealData }: AnalysisTabProps) {
     const [calculatedAt, setCalculatedAt] = useState<string | null>(null);
     const [aiLoading, setAiLoading] = useState(false);
     const [aiError, setAiError] = useState<string | null>(null);
+    const [voiceEnabled, setVoiceEnabled] = useState(false);
 
     // Prevent duplicate AI calls
     const aiCallInProgress = useRef(false);
@@ -344,13 +346,28 @@ export default function AnalysisTab({ dealId, dealData }: AnalysisTabProps) {
             {/* AI Investment Analysis - Auto-generated */}
             <div className={`bg-gradient-to-r from-indigo-50 to-purple-50 rounded-lg shadow-sm border border-indigo-100 ${aiLoading ? 'animate-pulse' : ''}`}>
                 {/* Header */}
-                <div className="px-6 py-4 border-b border-indigo-100 flex items-center justify-between">
-                    <h3 className="text-lg font-semibold text-indigo-900 flex items-center">
-                        <svg className="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
-                        </svg>
-                        AI Investment Analysis
-                    </h3>
+                <div className="px-6 py-4 border-b border-indigo-100 flex items-center justify-between flex-wrap gap-3">
+                    <div className="flex items-center gap-3">
+                        <h3 className="text-lg font-semibold text-indigo-900 flex items-center">
+                            <svg className="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+                            </svg>
+                            AI Investment Analysis
+                        </h3>
+                        <button
+                            onClick={() => setVoiceEnabled(!voiceEnabled)}
+                            className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-medium transition-colors ${voiceEnabled
+                                    ? 'bg-green-100 text-green-800 hover:bg-green-200'
+                                    : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                                }`}
+                            title={voiceEnabled ? 'Disable voice' : 'Enable voice'}
+                        >
+                            <svg className="h-3.5 w-3.5 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z" />
+                            </svg>
+                            {voiceEnabled ? 'Voice On' : 'Voice Off'}
+                        </button>
+                    </div>
                     {aiInsights && !aiLoading && (
                         <div className="flex items-center gap-3">
                             <span className={`px-3 py-1 rounded-full text-sm font-bold ${getRecommendationColor(aiInsights.recommendation)}`}>

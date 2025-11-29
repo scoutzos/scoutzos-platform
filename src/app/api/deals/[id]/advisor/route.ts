@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase/admin';
 import OpenAI from 'openai';
+import { ANALYSIS_SYSTEM_PROMPT, ANALYSIS_DISCLAIMERS } from '@/lib/prompts/analysis/system';
+import { validateAnalysisResponse, calculateConfidence, type AnalysisModeResponse } from '@/lib/prompts/analysis/schemas';
 
 // Initialize OpenAI if API key is available
 const openai = process.env.OPENAI_API_KEY
@@ -76,18 +78,82 @@ export async function POST(
             );
         }
 
-        // Build the prompt
-        const prompt = buildPrompt(deal, metrics);
+        // Build the context message
+        const contextMessage = buildContextMessage(deal, metrics);
 
-        // Call OpenAI API
+        // Call OpenAI API with comprehensive prompt
         const completion = await openai.chat.completions.create({
-            model: 'gpt-4o-mini',
-            max_tokens: 1024,
-            messages: [{ role: 'user', content: prompt }],
+            model: 'gpt-4o',
+            max_tokens: 2000,
+            temperature: 0.7,
+            response_format: { type: 'json_object' },
+            messages: [
+                { role: 'system', content: ANALYSIS_SYSTEM_PROMPT },
+                { role: 'user', content: contextMessage }
+            ],
         });
 
         const responseText = completion.choices[0]?.message?.content || '';
-        const insights = parseInsights(responseText);
+
+        // Parse and validate response
+        let analysisResponse: AnalysisModeResponse;
+        try {
+            analysisResponse = JSON.parse(responseText);
+        } catch (parseError) {
+            console.error('Failed to parse AI response:', parseError);
+            return NextResponse.json(
+                { error: 'AI returned invalid response format' },
+                { status: 500 }
+            );
+        }
+
+        // Validate response
+        const validation = validateAnalysisResponse(analysisResponse);
+        if (!validation.valid) {
+            console.error('AI response validation failed:', validation.errors);
+
+            // Try one more time with explicit instructions
+            const retryCompletion = await openai.chat.completions.create({
+                model: 'gpt-4o',
+                max_tokens: 2000,
+                temperature: 0.5,
+                response_format: { type: 'json_object' },
+                messages: [
+                    { role: 'system', content: ANALYSIS_SYSTEM_PROMPT },
+                    { role: 'user', content: contextMessage },
+                    { role: 'assistant', content: responseText },
+                    { role: 'user', content: `Your previous response had validation errors: ${validation.errors.join(', ')}. Please provide a corrected response in the exact JSON format specified.` }
+                ],
+            });
+
+            const retryText = retryCompletion.choices[0]?.message?.content || '';
+            try {
+                analysisResponse = JSON.parse(retryText);
+                const retryValidation = validateAnalysisResponse(analysisResponse);
+                if (!retryValidation.valid) {
+                    throw new Error('Retry validation failed');
+                }
+            } catch {
+                return NextResponse.json(
+                    { error: 'AI failed to generate valid analysis after retry' },
+                    { status: 500 }
+                );
+            }
+        }
+
+        // Log warnings if any
+        if (validation.warnings.length > 0) {
+            console.warn('[AI Analysis] Warnings:', validation.warnings);
+        }
+
+        // Convert to legacy format for compatibility
+        const insights: AIInsights = {
+            summary: analysisResponse.summary,
+            strengths: analysisResponse.strengths,
+            risks: analysisResponse.risks,
+            recommendation: mapRecommendation(analysisResponse.recommendation),
+            generatedAt: new Date().toISOString(),
+        };
 
         // Cache the insights
         try {
@@ -96,15 +162,36 @@ export async function POST(
                 .upsert({
                     deal_id: dealId,
                     insights: insights,
+                    full_analysis: analysisResponse, // Store full response for future use
+                    confidence: analysisResponse.confidence,
                     generated_at: new Date().toISOString(),
                 }, { onConflict: 'deal_id' });
+        } catch (cacheError) {
+            console.warn('Could not cache insights:', cacheError);
+        }
+
+        // Track performance for learning
+        try {
+            await supabaseAdmin
+                .from('ai_performance_tracking')
+                .insert({
+                    deal_id: dealId,
+                    recommendation: analysisResponse.recommendation,
+                    confidence: analysisResponse.confidence,
+                    model: 'gpt-4o',
+                    prompt_version: '1.0',
+                    generated_at: new Date().toISOString(),
+                });
         } catch {
-            // Table might not exist, that's ok - we still return the insights
-            console.warn('Could not cache insights - deal_insights table may not exist');
+            // Performance tracking is optional
         }
 
         return NextResponse.json({
             insights,
+            fullAnalysis: analysisResponse,
+            validation: {
+                warnings: validation.warnings
+            },
             cached: false,
         });
     } catch (error) {
@@ -126,62 +213,63 @@ export async function POST(
     }
 }
 
-function buildPrompt(deal: Record<string, unknown>, metrics: Record<string, unknown> | null): string {
-    return `You are a real estate investment advisor. Analyze this property and provide investment insights.
+function buildContextMessage(deal: Record<string, unknown>, metrics: Record<string, unknown> | null): string {
+    // Calculate data completeness for confidence scoring
+    const hasRent = !!deal.estimated_rent;
+    const hasTaxes = !!deal.tax_annual;
+    const hasInsurance = !!deal.insurance_annual;
+    const hasMetrics = !!metrics;
 
-PROPERTY DETAILS:
-- Address: ${deal.address_line1}, ${deal.city}, ${deal.state} ${deal.zip}
-- List Price: $${Number(deal.list_price).toLocaleString()}
-- Property Type: ${deal.property_type || 'Single Family'}
-- Beds: ${deal.beds || 'N/A'} | Baths: ${deal.baths || 'N/A'} | Sqft: ${deal.sqft || 'N/A'}
-- Year Built: ${deal.year_built || 'N/A'}
-- Days on Market: ${deal.days_on_market || 'N/A'}
-- Estimated Rent: $${deal.estimated_rent ? Number(deal.estimated_rent).toLocaleString() : 'N/A'}/month
+    const dataCompleteness = [hasRent, hasTaxes, hasInsurance, hasMetrics].filter(Boolean).length / 4;
 
-${metrics ? `
-FINANCIAL METRICS:
-- Cap Rate: ${metrics.cap_rate || 'N/A'}%
-- Cash on Cash Return: ${metrics.cash_on_cash || 'N/A'}%
-- Monthly Cash Flow: $${metrics.monthly_cash_flow ? Number(metrics.monthly_cash_flow).toLocaleString() : 'N/A'}
-- DSCR: ${metrics.dscr || 'N/A'}
-- NOI: $${metrics.noi ? Number(metrics.noi).toLocaleString() : 'N/A'}
-` : ''}
-
-Provide your analysis in this exact JSON format:
+    return `<context>
+DEAL DATA:
 {
-    "summary": "A brief 1-2 sentence summary of the investment opportunity",
-    "strengths": ["strength 1", "strength 2", "strength 3"],
-    "risks": ["risk 1", "risk 2", "risk 3"],
-    "recommendation": "Buy" | "Hold" | "Pass"
+  "address": "${deal.address_line1}, ${deal.city}, ${deal.state} ${deal.zip}",
+  "list_price": ${deal.list_price},
+  "property_type": "${deal.property_type || 'Single Family'}",
+  "beds": ${deal.beds || 'null'},
+  "baths": ${deal.baths || 'null'},
+  "sqft": ${deal.sqft || 'null'},
+  "year_built": ${deal.year_built || 'null'},
+  "days_on_market": ${deal.days_on_market || 'null'},
+  "estimated_rent": ${deal.estimated_rent || 'null'},
+  "zillow_rent_estimate": ${deal.zillow_rent_estimate || 'null'},
+  "rentcast_rent_estimate": ${deal.rentcast_rent_estimate || 'null'},
+  "property_taxes": ${deal.tax_annual || 'null'},
+  "insurance_estimate": ${deal.insurance_annual || 'null'},
+  "hoa": ${deal.hoa_monthly || 'null'}
 }
 
-Be specific and actionable. Consider cap rate benchmarks (6-10% is good), cash flow targets ($200+/month), and DSCR minimums (1.25+).`;
+${metrics ? `FINANCIAL METRICS:
+{
+  "cap_rate": ${metrics.cap_rate},
+  "cash_on_cash": ${metrics.cash_on_cash},
+  "monthly_cash_flow": ${metrics.monthly_cash_flow},
+  "annual_cash_flow": ${metrics.annual_cash_flow},
+  "dscr": ${metrics.dscr},
+  "noi": ${metrics.noi},
+  "total_investment": ${metrics.total_cash_required}
+}` : 'FINANCIAL METRICS: Not yet calculated'}
+
+DATA QUALITY:
+- Completeness: ${Math.round(dataCompleteness * 100)}%
+- Rent estimate source: ${deal.zillow_rent_estimate && deal.rentcast_rent_estimate ? 'Multiple sources' : deal.estimated_rent ? 'Single source' : 'Estimated'}
+
+ANALYSIS INSTRUCTIONS:
+1. Calculate all metrics if not provided
+2. Compare deal to typical market standards
+3. Provide recommendation appropriate to data quality
+4. Be conservative—if data is missing, use pessimistic estimates
+5. Flag any data that seems unrealistic or requires verification
+6. Include specific next steps for due diligence
+</context>
+
+Analyze this deal and provide your recommendation in the required JSON format.`;
 }
 
-function parseInsights(responseText: string): AIInsights {
-    try {
-        // Try to extract JSON from the response
-        const jsonMatch = responseText.match(/\{[\s\S]*\}/);
-        if (jsonMatch) {
-            const parsed = JSON.parse(jsonMatch[0]);
-            return {
-                summary: parsed.summary || 'Unable to generate summary',
-                strengths: parsed.strengths || [],
-                risks: parsed.risks || [],
-                recommendation: parsed.recommendation || 'Hold',
-                generatedAt: new Date().toISOString(),
-            };
-        }
-    } catch {
-        console.error('Failed to parse AI response:', responseText);
-    }
-
-    // Fallback response
-    return {
-        summary: 'Unable to generate AI insights at this time.',
-        strengths: [],
-        risks: [],
-        recommendation: 'Hold',
-        generatedAt: new Date().toISOString(),
-    };
+function mapRecommendation(rec: string): 'Buy' | 'Hold' | 'Pass' {
+    if (rec === 'STRONG_BUY' || rec === 'BUY') return 'Buy';
+    if (rec === 'PASS') return 'Pass';
+    return 'Hold';
 }

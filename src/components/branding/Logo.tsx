@@ -1,6 +1,8 @@
+import Link from 'next/link';
+
 export function LogoMark({ className = "w-10 h-10" }: { className?: string }) {
     return (
-        <svg viewBox="0 0 40 40" className={className} aria-label="ScoutzOS Logo">
+        <svg viewBox="0 0 40 40" className={`${className} transition-transform hover:scale-110`} aria-label="ScoutzOS Logo">
             <defs>
                 <linearGradient id="logoGradient" x1="0%" y1="0%" x2="100%" y2="100%">
                     <stop offset="0%" stopColor="#0284C7" />
@@ -18,15 +20,29 @@ export function LogoMark({ className = "w-10 h-10" }: { className?: string }) {
     );
 }
 
-export function Logo({ className = "", showText = true }: { className?: string; showText?: boolean }) {
+export function Logo({
+    size = "md",
+    showText = true,
+    href = "/"
+}: {
+    size?: "sm" | "md" | "lg";
+    showText?: boolean;
+    href?: string;
+}) {
+    const sizes = {
+        sm: { mark: "w-6 h-6", text: "text-sm" },
+        md: { mark: "w-10 h-10", text: "text-xl" },
+        lg: { mark: "w-16 h-16", text: "text-3xl" }
+    };
+
     return (
-        <div className={`flex items-center gap-3 ${className}`}>
-            <LogoMark />
+        <Link href={href} className="flex items-center gap-3 hover:opacity-80 transition-opacity">
+            <LogoMark className={sizes[size].mark} />
             {showText && (
-                <span className="font-bold text-xl">
+                <span className={`font-bold ${sizes[size].text}`}>
                     Scoutz<span className="text-brand-ai">OS</span>
                 </span>
             )}
-        </div>
+        </Link>
     );
 }
