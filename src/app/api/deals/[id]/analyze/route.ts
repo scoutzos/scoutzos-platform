@@ -15,6 +15,23 @@ const DEFAULT_ASSUMPTIONS = {
     capex_percent: 5,
 };
 
+// Validate required fields for analysis
+function validateDealForAnalysis(deal: any): { valid: boolean; missingFields: string[] } {
+    const missingFields: string[] = [];
+
+    if (!deal.list_price || deal.list_price <= 0) {
+        missingFields.push('Purchase Price');
+    }
+    if (!deal.estimated_rent || deal.estimated_rent <= 0) {
+        missingFields.push('Estimated Monthly Rent');
+    }
+
+    return {
+        valid: missingFields.length === 0,
+        missingFields
+    };
+}
+
 function calculateMetrics(deal: {
     list_price: number;
     estimated_rent?: number | null;
@@ -56,19 +73,28 @@ function calculateMetrics(deal: {
     const capRate = price > 0 ? (noi / price) * 100 : 0;
     const cashOnCash = totalCashRequired > 0 ? (annualCashFlow / totalCashRequired) * 100 : 0;
     const dscr = annualDebtService > 0 ? noi / annualDebtService : 0;
-    const grm = monthlyRent > 0 ? price / annualRent : 0;
 
     return {
+        // Metrics that match database schema
         cap_rate: Math.round(capRate * 100) / 100,
         cash_on_cash: Math.round(cashOnCash * 100) / 100,
         dscr: Math.round(dscr * 100) / 100,
         monthly_cash_flow: Math.round(monthlyCashFlow),
-        noi: Math.round(noi),
-        grm: Math.round(grm * 10) / 10,
-        down_payment: Math.round(downPayment),
-        loan_amount: Math.round(loanAmount),
-        monthly_mortgage: Math.round(monthlyMortgage),
-        total_cash_required: Math.round(totalCashRequired),
+        annual_noi: Math.round(noi),
+        annual_cash_flow: Math.round(annualCashFlow),
+        total_investment: Math.round(totalCashRequired),
+        monthly_expenses: Math.round(totalExpenses / 12),
+        monthly_noi: Math.round(noi / 12),
+        monthly_rent: Math.round(monthlyRent),
+
+        // Store additional metrics in JSON
+        metrics_json: {
+            grm: Math.round((price / annualRent) * 10) / 10,
+            down_payment: Math.round(downPayment),
+            loan_amount: Math.round(loanAmount),
+            monthly_mortgage: Math.round(monthlyMortgage),
+        },
+        assumptions_json: DEFAULT_ASSUMPTIONS,
     };
 }
 
@@ -91,6 +117,16 @@ export async function POST(
             return NextResponse.json({ error: 'Deal not found' }, { status: 404 });
         }
 
+        // Validate required fields
+        const validation = validateDealForAnalysis(deal);
+        if (!validation.valid) {
+            return NextResponse.json({
+                error: 'Cannot analyze deal',
+                message: 'This deal is missing required information for financial analysis.',
+                missingFields: validation.missingFields
+            }, { status: 400 });
+        }
+
         // Calculate metrics
         const metrics = calculateMetrics(deal);
 
@@ -100,14 +136,16 @@ export async function POST(
             .upsert({
                 deal_id: dealId,
                 ...metrics,
-                assumptions: DEFAULT_ASSUMPTIONS,
-                analyzed_at: new Date().toISOString(),
+                calculated_at: new Date().toISOString(),
                 updated_at: new Date().toISOString(),
             }, { onConflict: 'deal_id' });
 
         if (metricsError) {
             console.error('Metrics upsert error:', metricsError);
-            return NextResponse.json({ error: 'Failed to save metrics' }, { status: 500 });
+            return NextResponse.json({
+                error: 'Failed to save metrics',
+                message: 'An error occurred while saving the analysis results.'
+            }, { status: 500 });
         }
 
         // Update deal status to saved
@@ -122,6 +160,9 @@ export async function POST(
         });
     } catch (error: unknown) {
         console.error('Analyze error:', error);
-        return NextResponse.json({ error: 'Failed to analyze deal' }, { status: 500 });
+        return NextResponse.json({
+            error: 'Failed to analyze deal',
+            message: 'An unexpected error occurred. Please try again.'
+        }, { status: 500 });
     }
 }
