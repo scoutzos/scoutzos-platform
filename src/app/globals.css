@@ -1,15 +1,88 @@
 @import "tailwindcss";
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
+/* ScoutzOS Brand Theme - Tailwind v4 */
+@theme {
+  /* Brand Primary Scale */
+  --color-brand-primary-deep: #0A2342;
+  --color-brand-primary: #0284C7;
+  --color-brand-primary-soft: #E0F2FE;
+  --color-brand-primary-hover: #0369A1;
+
+  /* Brand AI Accent */
+  --color-brand-ai: #10B981;
+  --color-brand-ai-soft: #D1FAE5;
+  --color-brand-ai-strong: #059669;
+
+  /* Semantic Colors */
+  --color-success: #22C55E;
+  --color-success-soft: #DCFCE7;
+  --color-warning: #F59E0B;
+  --color-warning-soft: #FEF3C7;
+  --color-error: #EF4444;
+  --color-error-soft: #FEE2E2;
+  --color-info: #3B82F6;
+  --color-info-soft: #DBEAFE;
+
+  /* Gray Scale */
+  --color-gray-50: #F9FAFB;
+  --color-gray-100: #F3F4F6;
+  --color-gray-200: #E5E7EB;
+  --color-gray-300: #D1D5DB;
+  --color-gray-400: #9CA3AF;
+  --color-gray-500: #6B7280;
+  --color-gray-600: #4B5563;
+  --color-gray-700: #374151;
+  --color-gray-800: #1F2937;
+  --color-gray-900: #111827;
+  --color-gray-carbon: #0B0D10;
+
+  /* Chart Colors - Sequential */
+  --color-chart-1: #E0F2FE;
+  --color-chart-2: #BAE6FD;
+  --color-chart-3: #7DD3FC;
+  --color-chart-4: #38BDF8;
+  --color-chart-5: #0EA5E9;
+  --color-chart-6: #0284C7;
+
+  /* Chart Colors - Categorical */
+  --color-chart-cat-1: #0284C7;
+  --color-chart-cat-2: #10B981;
+  --color-chart-cat-3: #F59E0B;
+  --color-chart-cat-4: #8B5CF6;
+  --color-chart-cat-5: #EC4899;
+
+  /* Match Score Colors */
+  --color-match-excellent: #10B981;
+  --color-match-strong: #22C55E;
+  --color-match-good: #84CC16;
+  --color-match-fair: #F59E0B;
+  --color-match-weak: #EF4444;
+
+  /* Shadows */
+  --shadow-card: 0 1px 3px 0 rgb(0 0 0 / 0.1), 0 1px 2px -1px rgb(0 0 0 / 0.1);
+  --shadow-card-hover: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+  --shadow-dropdown: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
+  --shadow-elevation-1: 0 1px 3px rgba(15, 23, 42, 0.08);
+  --shadow-elevation-2: 0 4px 6px -1px rgba(15, 23, 42, 0.1), 0 2px 4px -1px rgba(15, 23, 42, 0.06);
+  --shadow-elevation-3: 0 10px 15px -3px rgba(15, 23, 42, 0.1), 0 4px 6px -2px rgba(15, 23, 42, 0.05);
+
+  /* Border Radius */
+  --radius-card: 0.75rem;
+  --radius-button: 0.5rem;
+  --radius-badge: 9999px;
+  --radius-sm: 0.25rem;
+  --radius-md: 0.5rem;
+  --radius-lg: 0.75rem;
+  --radius-xl: 1rem;
+
+  /* Fonts */
+  --font-sans: "Inter", system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", monospace;
 }
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+:root {
+  --background: #ffffff;
+  --foreground: #111827;
 }
 
 @media (prefers-color-scheme: dark) {
@@ -22,5 +95,262 @@
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: "Inter", system-ui, sans-serif;
+}
+
+/* Brand utility classes */
+.brand-gradient {
+  background: linear-gradient(135deg, var(--color-brand-primary) 0%, var(--color-brand-primary-deep) 100%);
+}
+
+.brand-gradient-text {
+  background: linear-gradient(135deg, var(--color-brand-primary) 0%, var(--color-brand-ai) 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+/* Match score badge styles */
+.match-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.25rem 0.75rem;
+  border-radius: 9999px;
+  font-weight: 600;
+  font-size: 0.875rem;
+}
+
+.match-badge-excellent {
+  background-color: #D1FAE5;
+  color: #065F46;
+}
+
+.match-badge-strong {
+  background-color: #DCFCE7;
+  color: #166534;
+}
+
+.match-badge-good {
+  background-color: #ECFCCB;
+  color: #3F6212;
+}
+
+.match-badge-fair {
+  background-color: #FEF3C7;
+  color: #92400E;
+}
+
+.match-badge-weak {
+  background-color: #FEE2E2;
+  color: #991B1B;
+}
+
+/* Card hover effect */
+.card-interactive {
+  transition: box-shadow 0.2s ease, transform 0.2s ease;
+}
+
+.card-interactive:hover {
+  box-shadow: var(--shadow-card-hover);
+  transform: translateY(-1px);
+}
+
+/* Status dot indicator */
+.status-dot {
+  width: 0.5rem;
+  height: 0.5rem;
+  border-radius: 9999px;
+}
+
+.status-dot-success { background-color: var(--color-success); }
+.status-dot-warning { background-color: var(--color-warning); }
+.status-dot-error { background-color: var(--color-error); }
+.status-dot-info { background-color: var(--color-info); }
+
+/* AI Surface styling */
+.ai-surface {
+  border-left: 3px solid var(--color-brand-ai);
+  background: linear-gradient(to right, var(--color-brand-ai-soft), transparent);
+}
+
+/* Skeleton loading */
+.skeleton {
+  background: linear-gradient(90deg, var(--color-gray-200) 25%, var(--color-gray-100) 50%, var(--color-gray-200) 75%);
+  background-size: 200% 100%;
+  animation: skeleton-loading 1.5s ease-in-out infinite;
+}
+
+@keyframes skeleton-loading {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+
+@keyframes pulse-slow {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.6; }
+}
+
+.animate-pulse-slow {
+  animation: pulse-slow 2s ease-in-out infinite;
+}
+
+/* React Grid Layout Styles */
+.react-grid-layout {
+  position: relative;
+  transition: height 200ms ease;
+}
+
+.react-grid-item {
+  transition: all 200ms ease;
+  transition-property: left, top, width, height;
+}
+
+.react-grid-item.cssTransforms {
+  transition-property: transform, width, height;
+}
+
+.react-grid-item.resizing {
+  z-index: 1;
+  will-change: width, height;
+}
+
+.react-grid-item.react-draggable-dragging {
+  transition: none;
+  z-index: 3;
+  will-change: transform;
+}
+
+.react-grid-item.dropping {
+  visibility: hidden;
+}
+
+.react-grid-item.react-grid-placeholder {
+  background: var(--color-brand-primary);
+  opacity: 0.2;
+  transition-duration: 100ms;
+  z-index: 2;
+  border-radius: var(--radius-card);
+  user-select: none;
+}
+
+/* Widget drag handle */
+.widget-drag-handle {
+  cursor: grab;
+}
+
+.widget-drag-handle:active {
+  cursor: grabbing;
+}
+
+/* Resize handle */
+.react-resizable-handle {
+  position: absolute;
+  width: 20px;
+  height: 20px;
+}
+
+.react-resizable-handle::after {
+  content: "";
+  position: absolute;
+  right: 3px;
+  bottom: 3px;
+  width: 8px;
+  height: 8px;
+  border-right: 2px solid var(--color-gray-400);
+  border-bottom: 2px solid var(--color-gray-400);
+  transition: border-color 0.2s ease;
+}
+
+.react-grid-item:hover .react-resizable-handle::after {
+  border-color: var(--color-brand-primary);
+}
+
+.react-resizable-handle-se {
+  bottom: 0;
+  right: 0;
+  cursor: se-resize;
+}
+
+.react-resizable-handle-sw {
+  bottom: 0;
+  left: 0;
+  cursor: sw-resize;
+}
+
+.react-resizable-handle-nw {
+  top: 0;
+  left: 0;
+  cursor: nw-resize;
+}
+
+.react-resizable-handle-ne {
+  top: 0;
+  right: 0;
+  cursor: ne-resize;
+}
+
+.react-resizable-handle-w,
+.react-resizable-handle-e {
+  top: 50%;
+  margin-top: -10px;
+  cursor: ew-resize;
+}
+
+.react-resizable-handle-w {
+  left: 0;
+}
+
+.react-resizable-handle-e {
+  right: 0;
+}
+
+.react-resizable-handle-n,
+.react-resizable-handle-s {
+  left: 50%;
+  margin-left: -10px;
+  cursor: ns-resize;
+}
+
+.react-resizable-handle-n {
+  top: 0;
+}
+
+.react-resizable-handle-s {
+  bottom: 0;
+}
+
+/* Widget container styles */
+.dashboard-widget {
+  background: white;
+  border-radius: var(--radius-card);
+  box-shadow: var(--shadow-card);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+.dashboard-widget-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.75rem 1rem;
+  border-bottom: 1px solid var(--color-gray-200);
+  background: var(--color-gray-50);
+}
+
+.dashboard-widget-content {
+  flex: 1;
+  overflow: auto;
+  padding: 1rem;
+}
+
+/* Edit mode indicator */
+.dashboard-edit-mode .dashboard-widget {
+  border: 2px dashed var(--color-brand-primary);
+}
+
+.dashboard-edit-mode .react-grid-item:hover {
+  box-shadow: var(--shadow-elevation-2);
 }

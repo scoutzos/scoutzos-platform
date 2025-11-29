@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { supabaseAdmin, getTenantIdForUser } from '@/lib/supabase/admin';
+import { matchDealToAllBuyBoxes } from '@/lib/services/matching';
 
 export async function GET(request: NextRequest) {
     try {
@@ -15,8 +16,16 @@ export async function GET(request: NextRequest) {
         const limit = parseInt(searchParams.get('limit') || '20');
         const sortBy = searchParams.get('sortBy') || 'created_at';
         const sortOrder = searchParams.get('sortOrder') || 'desc';
+        const status = searchParams.get('status'); // comma-separated status values
 
         let query = supabaseAdmin.from('deals').select('*', { count: 'exact' }).eq('tenant_id', tenantId);
+
+        // Filter by status if provided
+        if (status) {
+            const statuses = status.split(',').map(s => s.trim());
+            query = query.in('status', statuses);
+        }
+
         query = query.order(sortBy, { ascending: sortOrder === 'asc' });
         const from = (page - 1) * limit;
         query = query.range(from, from + limit - 1);
@@ -45,6 +54,14 @@ export async function POST(request: NextRequest) {
 
         const { data: deal, error } = await supabaseAdmin.from('deals').insert({ tenant_id: tenantId, ...body, status: 'new' }).select().single();
         if (error) return NextResponse.json({ error: 'Failed to create deal' }, { status: 500 });
+
+        // Auto-match deal to all buy boxes (run in background, don't await)
+        if (deal) {
+            matchDealToAllBuyBoxes(deal.id, tenantId).catch(err =>
+                console.error(`[Auto-Match] Failed for deal ${deal.id}:`, err)
+            );
+        }
+
         return NextResponse.json({ deal }, { status: 201 });
     } catch (error) {
         return NextResponse.json({ error: 'Internal server error' }, { status: 500 });

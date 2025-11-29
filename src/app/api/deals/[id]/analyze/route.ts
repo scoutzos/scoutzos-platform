@@ -1,100 +1,127 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@/lib/supabase/server';
-import { supabaseAdmin, getTenantIdForUser } from '@/lib/supabase/admin';
-import { analyzeDeal, UnderwritingAssumptions, UnderwritingResult } from '@/lib/services/underwriting';
-import { generateInsights } from '@/lib/services/ai-insights';
+import { supabaseAdmin } from '@/lib/supabase/admin';
 
-export async function POST(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
-    try {
-        const { id } = await params;
-        const supabase = await createClient();
-        const { data: { user }, error: authError } = await supabase.auth.getUser();
-        if (authError || !user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-        const tenantId = await getTenantIdForUser(user.id);
-        if (!tenantId) return NextResponse.json({ error: 'User not associated with a tenant' }, { status: 403 });
+const TENANT_ID = 'a0000000-0000-0000-0000-000000000001';
 
-        let customAssumptions: Partial<UnderwritingAssumptions> = {};
-        try { const body = await request.json(); customAssumptions = body.assumptions || {}; } catch { }
+// Default underwriting assumptions
+const DEFAULT_ASSUMPTIONS = {
+    down_payment_percent: 25,
+    interest_rate: 7.5,
+    loan_term_years: 30,
+    closing_cost_percent: 3,
+    vacancy_rate: 8,
+    management_fee_percent: 10,
+    maintenance_percent: 5,
+    capex_percent: 5,
+};
 
-        const { data: deal, error: fetchError } = await supabaseAdmin.from('deals').select('*').eq('id', id).eq('tenant_id', tenantId).single();
-        if (fetchError || !deal) return NextResponse.json({ error: 'Deal not found' }, { status: 404 });
+function calculateMetrics(deal: {
+    list_price: number;
+    estimated_rent?: number | null;
+    tax_annual?: number | null;
+    insurance_annual?: number | null;
+    hoa_monthly?: number | null;
+}) {
+    const price = deal.list_price;
+    const monthlyRent = deal.estimated_rent || 0;
+    const annualRent = monthlyRent * 12;
 
-        // Check for required fields and return helpful error messages
-        const missingFields: string[] = [];
-        if (!deal.list_price) missingFields.push('list_price');
-        if (!deal.estimated_rent) missingFields.push('estimated_rent (monthly rent estimate)');
+    // Expenses
+    const annualTax = deal.tax_annual || price * 0.012;
+    const annualInsurance = deal.insurance_annual || price * 0.005;
+    const annualHOA = (deal.hoa_monthly || 0) * 12;
+    const vacancyLoss = annualRent * (DEFAULT_ASSUMPTIONS.vacancy_rate / 100);
+    const managementFee = annualRent * (DEFAULT_ASSUMPTIONS.management_fee_percent / 100);
+    const maintenance = annualRent * (DEFAULT_ASSUMPTIONS.maintenance_percent / 100);
+    const capex = annualRent * (DEFAULT_ASSUMPTIONS.capex_percent / 100);
 
-        if (missingFields.length > 0) {
-            return NextResponse.json({
-                error: 'Missing required fields for analysis',
-                missingFields,
-                message: `This deal is missing: ${missingFields.join(', ')}. Please edit the deal to add these values before running analysis.`,
-                deal_id: id
-            }, { status: 400 });
-        }
+    const totalExpenses = annualTax + annualInsurance + annualHOA + vacancyLoss + managementFee + maintenance + capex;
+    const noi = annualRent - totalExpenses;
 
-        const analysis: UnderwritingResult = analyzeDeal({
-            purchasePrice: deal.list_price,
-            estimatedRent: deal.estimated_rent,
-            propertyTaxes: deal.tax_annual || 0,
-            insurance: deal.insurance_annual || 0,
-            hoa: deal.hoa_monthly ? deal.hoa_monthly * 12 : 0,
-        }, customAssumptions);
+    // Loan calculations
+    const downPayment = price * (DEFAULT_ASSUMPTIONS.down_payment_percent / 100);
+    const loanAmount = price - downPayment;
+    const closingCosts = price * (DEFAULT_ASSUMPTIONS.closing_cost_percent / 100);
+    const totalCashRequired = downPayment + closingCosts;
 
-        const insights = await generateInsights(deal, analysis);
+    const monthlyRate = DEFAULT_ASSUMPTIONS.interest_rate / 100 / 12;
+    const numPayments = DEFAULT_ASSUMPTIONS.loan_term_years * 12;
+    const monthlyMortgage = loanAmount * (monthlyRate * Math.pow(1 + monthlyRate, numPayments)) / (Math.pow(1 + monthlyRate, numPayments) - 1);
+    const annualDebtService = monthlyMortgage * 12;
 
-        await supabaseAdmin.from('deal_metrics').upsert({
-            deal_id: id,
-            monthly_rent: deal.estimated_rent,
-            monthly_expenses: analysis.totalMonthlyExpenses,
-            monthly_noi: analysis.noi / 12,
-            monthly_cash_flow: analysis.monthlyCashFlow,
-            annual_noi: analysis.noi,
-            annual_cash_flow: analysis.annualCashFlow,
-            cap_rate: analysis.capRate,
-            cash_on_cash: analysis.cashOnCash,
-            dscr: analysis.dscr,
-            total_investment: analysis.totalCashRequired,
-            assumptions_json: analysis.assumptions,
-            metrics_json: {
-                purchasePrice: analysis.purchasePrice,
-                downPayment: analysis.downPayment,
-                loanAmount: analysis.loanAmount,
-                monthlyMortgage: analysis.monthlyMortgage,
-                expenses: analysis.expenses,
-                insights // Store insights in metrics_json for now so we can retrieve them later
-            },
-            calculated_at: new Date().toISOString(),
-        }, { onConflict: 'deal_id' });
+    const annualCashFlow = noi - annualDebtService;
+    const monthlyCashFlow = annualCashFlow / 12;
 
-        if (deal.status === 'new') await supabaseAdmin.from('deals').update({ status: 'analyzing' }).eq('id', id);
+    // Key metrics
+    const capRate = price > 0 ? (noi / price) * 100 : 0;
+    const cashOnCash = totalCashRequired > 0 ? (annualCashFlow / totalCashRequired) * 100 : 0;
+    const dscr = annualDebtService > 0 ? noi / annualDebtService : 0;
+    const grm = monthlyRent > 0 ? price / annualRent : 0;
 
-        return NextResponse.json({ analysis, insights, deal_id: id, calculated_at: new Date().toISOString() });
-    } catch (error) {
-        return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
-    }
+    return {
+        cap_rate: Math.round(capRate * 100) / 100,
+        cash_on_cash: Math.round(cashOnCash * 100) / 100,
+        dscr: Math.round(dscr * 100) / 100,
+        monthly_cash_flow: Math.round(monthlyCashFlow),
+        noi: Math.round(noi),
+        grm: Math.round(grm * 10) / 10,
+        down_payment: Math.round(downPayment),
+        loan_amount: Math.round(loanAmount),
+        monthly_mortgage: Math.round(monthlyMortgage),
+        total_cash_required: Math.round(totalCashRequired),
+    };
 }
 
-export async function GET(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+export async function POST(
+    request: NextRequest,
+    { params }: { params: Promise<{ id: string }> }
+) {
     try {
-        const { id } = await params;
-        const supabase = await createClient();
-        const { data: { user }, error: authError } = await supabase.auth.getUser();
-        if (authError || !user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-        const tenantId = await getTenantIdForUser(user.id);
-        if (!tenantId) return NextResponse.json({ error: 'User not associated with a tenant' }, { status: 403 });
+        const { id: dealId } = await params;
 
-        const { data: deal } = await supabaseAdmin.from('deals').select('id').eq('id', id).eq('tenant_id', tenantId).single();
-        if (!deal) return NextResponse.json({ error: 'Deal not found' }, { status: 404 });
+        // Fetch the deal
+        const { data: deal, error: dealError } = await supabaseAdmin
+            .from('deals')
+            .select('*')
+            .eq('id', dealId)
+            .eq('tenant_id', TENANT_ID)
+            .single();
 
-        const { data: metrics, error: metricsError } = await supabaseAdmin.from('deal_metrics').select('*').eq('deal_id', id).single();
-        if (metricsError?.code === 'PGRST116') return NextResponse.json({ error: 'No analysis found for this deal' }, { status: 404 });
+        if (dealError || !deal) {
+            return NextResponse.json({ error: 'Deal not found' }, { status: 404 });
+        }
 
-        // Extract insights from metrics_json if available
-        const insights = metrics.metrics_json?.insights || null;
+        // Calculate metrics
+        const metrics = calculateMetrics(deal);
 
-        return NextResponse.json({ metrics, insights, deal_id: id });
-    } catch (error) {
-        return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+        // Upsert deal_metrics
+        const { error: metricsError } = await supabaseAdmin
+            .from('deal_metrics')
+            .upsert({
+                deal_id: dealId,
+                ...metrics,
+                assumptions: DEFAULT_ASSUMPTIONS,
+                analyzed_at: new Date().toISOString(),
+                updated_at: new Date().toISOString(),
+            }, { onConflict: 'deal_id' });
+
+        if (metricsError) {
+            console.error('Metrics upsert error:', metricsError);
+            return NextResponse.json({ error: 'Failed to save metrics' }, { status: 500 });
+        }
+
+        // Update deal status to saved
+        await supabaseAdmin
+            .from('deals')
+            .update({ status: 'saved', updated_at: new Date().toISOString() })
+            .eq('id', dealId);
+
+        return NextResponse.json({
+            success: true,
+            metrics,
+        });
+    } catch (error: unknown) {
+        console.error('Analyze error:', error);
+        return NextResponse.json({ error: 'Failed to analyze deal' }, { status: 500 });
     }
 }

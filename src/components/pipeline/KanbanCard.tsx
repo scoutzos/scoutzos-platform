@@ -17,12 +17,12 @@ export default function KanbanCard({ deal, index }: KanbanCardProps) {
                     ref={provided.innerRef}
                     {...provided.draggableProps}
                     {...provided.dragHandleProps}
-                    className="bg-white p-4 rounded shadow-sm border border-gray-200 mb-3 hover:shadow-md transition-shadow"
+                    className="bg-white p-4 rounded-xl shadow-card border border-gray-200 mb-3 hover:shadow-card-hover transition-shadow cursor-grab active:cursor-grabbing"
                 >
                     <h4 className="font-medium text-gray-900 truncate">{deal.address_line1}</h4>
                     <p className="text-sm text-gray-500 truncate">{deal.city}, {deal.state}</p>
                     <div className="mt-2 flex justify-between items-center">
-                        <span className="text-sm font-semibold text-blue-600">
+                        <span className="text-sm font-semibold text-brand-primary">
                             {formatCurrency(deal.list_price)}
                         </span>
                         {deal.estimated_rent && (

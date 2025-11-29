@@ -64,7 +64,7 @@ export default function KanbanBoard() {
         }
     };
 
-    if (loading) return <div className="p-8 text-center">Loading pipeline...</div>;
+    if (loading) return <div className="p-8 text-center text-gray-500">Loading pipeline...</div>;
 
     return (
         <DragDropContext onDragEnd={onDragEnd}>
@@ -72,10 +72,10 @@ export default function KanbanBoard() {
                 {COLUMNS.map((column) => {
                     const columnDeals = deals.filter(deal => deal.status === column.id);
                     return (
-                        <div key={column.id} className="flex-shrink-0 w-80 bg-gray-50 rounded-lg flex flex-col max-h-full">
+                        <div key={column.id} className="flex-shrink-0 w-80 bg-gray-50 rounded-xl flex flex-col max-h-full border border-gray-200">
                             <div className="p-4 border-b border-gray-200 flex justify-between items-center">
-                                <h3 className="font-semibold text-gray-700">{column.title}</h3>
-                                <span className="bg-gray-200 text-gray-600 text-xs px-2 py-1 rounded-full">
+                                <h3 className="font-semibold text-gray-900">{column.title}</h3>
+                                <span className="bg-brand-primary-soft text-brand-primary text-xs font-medium px-2.5 py-1 rounded-full">
                                     {columnDeals.length}
                                 </span>
                             </div>

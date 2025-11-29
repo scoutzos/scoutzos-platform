@@ -9,14 +9,14 @@ interface StatusPieChartProps {
 }
 
 const STATUS_COLORS: Record<DealStatus, string> = {
-    new: '#3B82F6',
-    analyzing: '#F59E0B',
-    saved: '#10B981',
-    offered: '#8B5CF6',
-    under_contract: '#F97316',
-    closed: '#065F46',
-    passed: '#6B7280',
-    dead: '#EF4444',
+    new: '#0284C7',        // brand-primary (blue)
+    analyzing: '#F59E0B',  // warning (amber)
+    saved: '#10B981',      // brand-ai (green)
+    offered: '#1E3A5F',    // brand-primary-deep lightened
+    under_contract: '#22C55E', // success (green)
+    closed: '#065F46',     // dark green
+    passed: '#6B7280',     // gray-500
+    dead: '#EF4444',       // error (red)
 };
 
 const STATUS_LABELS: Record<DealStatus, string> = {

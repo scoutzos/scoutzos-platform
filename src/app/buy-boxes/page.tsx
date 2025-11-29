@@ -5,26 +5,46 @@ import { BuyBox } from '@/types/buy-boxes';
 import BuyBoxCard from '@/components/buy-boxes/BuyBoxCard';
 import Link from 'next/link';
 
+interface MatchCount {
+    buy_box_id: string;
+    count: number;
+}
+
 export default function BuyBoxesPage() {
     const [buyBoxes, setBuyBoxes] = useState<BuyBox[]>([]);
+    const [matchCounts, setMatchCounts] = useState<Record<string, number>>({});
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
-        async function fetchBuyBoxes() {
+        async function fetchData() {
             try {
-                const res = await fetch('/api/buy-boxes');
-                const data = await res.json();
-                if (Array.isArray(data)) {
-                    setBuyBoxes(data);
+                // Fetch buy boxes and match counts in parallel
+                const [buyBoxesRes, matchCountsRes] = await Promise.all([
+                    fetch('/api/buy-boxes'),
+                    fetch('/api/buy-boxes/match-counts'),
+                ]);
+
+                const buyBoxesData = await buyBoxesRes.json();
+                if (Array.isArray(buyBoxesData)) {
+                    setBuyBoxes(buyBoxesData);
+                }
+
+                const matchCountsData = await matchCountsRes.json();
+                if (Array.isArray(matchCountsData)) {
+                    const counts: Record<string, number> = {};
+                    matchCountsData.forEach((item: MatchCount) => {
+                        counts[item.buy_box_id] = item.count;
+                    });
+                    setMatchCounts(counts);
                 }
             } catch (error) {
-                console.error('Failed to fetch buy boxes:', error);
+                console.error('Failed to fetch data:', error);
             } finally {
                 setLoading(false);
             }
         }
 
-        fetchBuyBoxes();
+        fetchData();
     }, []);
 
     if (loading) {
@@ -44,7 +64,7 @@ export default function BuyBoxesPage() {
                 </div>
                 <Link
                     href="/buy-boxes/new"
-                    className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg transition-colors"
+                    className="bg-brand-primary hover:bg-brand-primary-hover text-white px-4 py-2 rounded-lg transition-colors"
                 >
                     Create Buy Box
                 </Link>
@@ -56,7 +76,7 @@ export default function BuyBoxesPage() {
                     <p className="text-gray-500 mt-1 mb-6">Create your first buy box to start finding deals.</p>
                     <Link
                         href="/buy-boxes/new"
-                        className="text-blue-600 hover:text-blue-700 font-medium"
+                        className="text-brand-primary hover:text-brand-primary-hover font-medium"
                     >
                         Create Buy Box &rarr;
                     </Link>
@@ -64,7 +84,11 @@ export default function BuyBoxesPage() {
             ) : (
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                     {buyBoxes.map((buyBox) => (
-                        <BuyBoxCard key={buyBox.id} buyBox={buyBox} />
+                        <BuyBoxCard
+                            key={buyBox.id}
+                            buyBox={buyBox}
+                            matchCount={matchCounts[buyBox.id] || 0}
+                        />
                     ))}
                 </div>
             )}

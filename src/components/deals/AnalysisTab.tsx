@@ -26,6 +26,9 @@ export default function AnalysisTab({ dealId, dealData }: AnalysisTabProps) {
     const [savedAssumptions, setSavedAssumptions] = useState<UnderwritingAssumptions>(DEFAULT_ASSUMPTIONS);
     const [insights, setInsights] = useState<{ pros: string[], cons: string[], thesis: string } | null>(null);
     const [calculatedAt, setCalculatedAt] = useState<string | null>(null);
+    const [insightsLoading, setInsightsLoading] = useState(false);
+    const [insightsError, setInsightsError] = useState<string | null>(null);
+    const [insightsGeneratedAt, setInsightsGeneratedAt] = useState<string | null>(null);
 
     // Format timestamp for display
     const formatTimestamp = (isoString: string) => {
@@ -120,6 +123,8 @@ export default function AnalysisTab({ dealId, dealData }: AnalysisTabProps) {
             }
             if (data.insights) {
                 setInsights(data.insights);
+                setInsightsGeneratedAt(data.calculated_at || new Date().toISOString());
+                setInsightsError(null);
             }
         } catch (err) {
             console.error(err);
@@ -132,6 +137,39 @@ export default function AnalysisTab({ dealId, dealData }: AnalysisTabProps) {
 
     const handleReset = () => {
         setAssumptions(savedAssumptions);
+    };
+
+    const handleRegenerateInsights = async () => {
+        if (!confirm('This will generate a new AI analysis. Continue?')) return;
+
+        try {
+            setInsightsLoading(true);
+            setInsightsError(null);
+            setInsights(null);
+
+            const response = await fetch(`/api/deals/${dealId}/analyze`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ assumptions, regenerateInsights: true }),
+            });
+
+            const data = await response.json();
+
+            if (!response.ok) {
+                setInsightsError(data.error || 'Failed to generate AI analysis');
+                return;
+            }
+
+            if (data.insights) {
+                setInsights(data.insights);
+                setInsightsGeneratedAt(new Date().toISOString());
+            }
+        } catch (err) {
+            console.error(err);
+            setInsightsError('Could not connect to AI service. Please try again.');
+        } finally {
+            setInsightsLoading(false);
+        }
     };
 
     const handleAssumptionChange = (key: keyof UnderwritingAssumptions, value: string) => {
@@ -178,9 +216,6 @@ export default function AnalysisTab({ dealId, dealData }: AnalysisTabProps) {
         </div>
     );
     if (!analysis) return <div className="p-8 text-center"><button onClick={() => runAnalysis(assumptions)} className="text-blue-600 hover:underline">Run Analysis</button></div>;
-
-    // Use insights from state, or fallback to empty structure if loading/missing
-    const displayInsights = insights || { pros: [], cons: [], thesis: 'Analysis pending...' };
 
     return (
         <div className="space-y-8">
@@ -345,38 +380,143 @@ export default function AnalysisTab({ dealId, dealData }: AnalysisTabProps) {
             </div>
 
             {/* AI Insights Section */}
-            <div className="bg-gradient-to-r from-indigo-50 to-blue-50 rounded-lg p-6 shadow-sm border border-indigo-100">
-                <h3 className="text-lg font-semibold text-indigo-900 mb-4 flex items-center">
-                    <svg className="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
-                    </svg>
-                    AI Investment Insights
-                </h3>
-
-                <div className="mb-4">
-                    <h4 className="text-sm font-bold text-indigo-800 uppercase tracking-wide mb-2">Investment Thesis</h4>
-                    <p className="text-gray-700 italic">{displayInsights.thesis}</p>
+            <div className={`bg-gradient-to-r from-indigo-50 to-blue-50 rounded-lg shadow-sm border border-indigo-100 ${insightsLoading ? 'animate-pulse' : ''}`}>
+                {/* Header */}
+                <div className="px-6 py-4 border-b border-indigo-100 flex items-center justify-between">
+                    <h3 className="text-lg font-semibold text-indigo-900 flex items-center">
+                        <svg className="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+                        </svg>
+                        AI Investment Analysis
+                    </h3>
+                    {insights && !insightsLoading && (
+                        <button
+                            onClick={handleRegenerateInsights}
+                            disabled={insightsLoading}
+                            className="inline-flex items-center px-3 py-1.5 text-sm font-medium text-indigo-700 bg-white border border-indigo-300 rounded-md hover:bg-indigo-50 transition-colors disabled:opacity-50"
+                        >
+                            <svg className="h-4 w-4 mr-1.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                            </svg>
+                            Regenerate
+                        </button>
+                    )}
                 </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <div>
-                        <h4 className="text-sm font-bold text-green-700 uppercase tracking-wide mb-2">Pros</h4>
-                        <ul className="list-disc list-inside space-y-1">
-                            {displayInsights.pros.map((pro, idx) => (
-                                <li key={idx} className="text-sm text-gray-700">{pro}</li>
-                            ))}
-                            {displayInsights.pros.length === 0 && <li className="text-sm text-gray-500">No significant pros identified based on current metrics.</li>}
-                        </ul>
-                    </div>
-                    <div>
-                        <h4 className="text-sm font-bold text-red-700 uppercase tracking-wide mb-2">Cons</h4>
-                        <ul className="list-disc list-inside space-y-1">
-                            {displayInsights.cons.map((con, idx) => (
-                                <li key={idx} className="text-sm text-gray-700">{con}</li>
-                            ))}
-                            {displayInsights.cons.length === 0 && <li className="text-sm text-gray-500">No significant cons identified based on current metrics.</li>}
-                        </ul>
-                    </div>
+                {/* Content */}
+                <div className="p-6">
+                    {/* Loading State */}
+                    {insightsLoading && (
+                        <div className="flex flex-col items-center justify-center py-12">
+                            <svg className="animate-spin h-10 w-10 text-indigo-600 mb-4" fill="none" viewBox="0 0 24 24">
+                                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                            </svg>
+                            <p className="text-indigo-800 font-medium">Analyzing deal with AI...</p>
+                            <p className="text-sm text-indigo-600 mt-1">This usually takes 10-30 seconds</p>
+                        </div>
+                    )}
+
+                    {/* Error State */}
+                    {insightsError && !insightsLoading && (
+                        <div className="flex flex-col items-center justify-center py-8">
+                            <div className="bg-red-50 border border-red-200 rounded-lg p-6 max-w-md w-full text-center">
+                                <svg className="h-10 w-10 text-red-500 mx-auto mb-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                                </svg>
+                                <h4 className="text-red-800 font-semibold mb-1">Failed to generate AI analysis</h4>
+                                <p className="text-sm text-red-600 mb-4">{insightsError}</p>
+                                <button
+                                    onClick={handleRegenerateInsights}
+                                    className="inline-flex items-center px-4 py-2 text-sm font-medium text-white bg-red-600 rounded-md hover:bg-red-700 transition-colors"
+                                >
+                                    Try Again
+                                </button>
+                            </div>
+                        </div>
+                    )}
+
+                    {/* Insights Content */}
+                    {insights && !insightsLoading && !insightsError && (
+                        <>
+                            <div className="mb-6">
+                                <h4 className="text-sm font-bold text-indigo-800 uppercase tracking-wide mb-2">Investment Thesis</h4>
+                                <div className="bg-white/60 rounded-lg p-4 border border-indigo-100">
+                                    <p className="text-gray-700 italic">&ldquo;{insights.thesis}&rdquo;</p>
+                                </div>
+                            </div>
+
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                <div className="bg-green-50/50 rounded-lg p-4 border border-green-100">
+                                    <h4 className="text-sm font-bold text-green-700 uppercase tracking-wide mb-3 flex items-center">
+                                        <svg className="h-4 w-4 mr-1.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                        </svg>
+                                        Strengths
+                                    </h4>
+                                    <ul className="space-y-2">
+                                        {insights.pros.map((pro, idx) => (
+                                            <li key={idx} className="text-sm text-gray-700 flex items-start">
+                                                <span className="text-green-500 mr-2 mt-0.5">✓</span>
+                                                {pro}
+                                            </li>
+                                        ))}
+                                        {insights.pros.length === 0 && (
+                                            <li className="text-sm text-gray-500 italic">No significant strengths identified.</li>
+                                        )}
+                                    </ul>
+                                </div>
+                                <div className="bg-red-50/50 rounded-lg p-4 border border-red-100">
+                                    <h4 className="text-sm font-bold text-red-700 uppercase tracking-wide mb-3 flex items-center">
+                                        <svg className="h-4 w-4 mr-1.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                                        </svg>
+                                        Risks
+                                    </h4>
+                                    <ul className="space-y-2">
+                                        {insights.cons.map((con, idx) => (
+                                            <li key={idx} className="text-sm text-gray-700 flex items-start">
+                                                <span className="text-red-500 mr-2 mt-0.5">⚠</span>
+                                                {con}
+                                            </li>
+                                        ))}
+                                        {insights.cons.length === 0 && (
+                                            <li className="text-sm text-gray-500 italic">No significant risks identified.</li>
+                                        )}
+                                    </ul>
+                                </div>
+                            </div>
+
+                            {/* Timestamp */}
+                            {insightsGeneratedAt && (
+                                <div className="mt-4 pt-4 border-t border-indigo-100">
+                                    <p className="text-xs text-indigo-600/70 text-right">
+                                        Analysis generated: {formatTimestamp(insightsGeneratedAt)}
+                                    </p>
+                                </div>
+                            )}
+                        </>
+                    )}
+
+                    {/* No Insights Yet State */}
+                    {!insights && !insightsLoading && !insightsError && (
+                        <div className="flex flex-col items-center justify-center py-8">
+                            <svg className="h-12 w-12 text-indigo-300 mb-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
+                            </svg>
+                            <p className="text-indigo-700 font-medium mb-1">No AI analysis yet</p>
+                            <p className="text-sm text-indigo-500 mb-4">Generate AI-powered insights for this deal</p>
+                            <button
+                                onClick={handleRegenerateInsights}
+                                className="inline-flex items-center px-4 py-2 text-sm font-medium text-white bg-indigo-600 rounded-md hover:bg-indigo-700 transition-colors"
+                            >
+                                <svg className="h-4 w-4 mr-1.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+                                </svg>
+                                Generate Analysis
+                            </button>
+                        </div>
+                    )}
                 </div>
             </div>
 

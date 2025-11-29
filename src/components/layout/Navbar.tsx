@@ -97,7 +97,7 @@ function NotificationBell() {
         <div className="relative" ref={dropdownRef}>
             <button
                 onClick={() => setIsOpen(!isOpen)}
-                className="relative p-2 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-full transition-colors"
+                className="relative p-2 text-white/80 hover:text-white hover:bg-white/10 rounded-full transition-colors"
                 aria-label="Notifications"
             >
                 <svg
@@ -115,20 +115,20 @@ function NotificationBell() {
                     />
                 </svg>
                 {unreadCount > 0 && (
-                    <span className="absolute top-0 right-0 inline-flex items-center justify-center px-1.5 py-0.5 text-xs font-bold leading-none text-white transform translate-x-1/2 -translate-y-1/2 bg-red-500 rounded-full">
+                    <span className="absolute top-0 right-0 inline-flex items-center justify-center px-1.5 py-0.5 text-xs font-bold leading-none text-white transform translate-x-1/2 -translate-y-1/2 bg-error rounded-full">
                         {unreadCount > 9 ? '9+' : unreadCount}
                     </span>
                 )}
             </button>
 
             {isOpen && (
-                <div className="absolute right-0 mt-2 w-80 bg-white rounded-lg shadow-lg border border-gray-200 z-50 overflow-hidden">
+                <div className="absolute right-0 mt-2 w-80 bg-white rounded-xl shadow-dropdown border border-gray-200 z-50 overflow-hidden">
                     <div className="flex items-center justify-between px-4 py-3 border-b border-gray-200 bg-gray-50">
                         <h3 className="text-sm font-semibold text-gray-900">Notifications</h3>
                         {unreadCount > 0 && (
                             <button
                                 onClick={markAllAsRead}
-                                className="text-xs text-blue-600 hover:text-blue-800 font-medium"
+                                className="text-xs text-brand-primary hover:text-brand-primary-hover font-medium"
                             >
                                 Mark all read
                             </button>
@@ -138,7 +138,7 @@ function NotificationBell() {
                     <div className="max-h-96 overflow-y-auto">
                         {loading ? (
                             <div className="px-4 py-8 text-center">
-                                <div className="animate-spin h-6 w-6 border-2 border-blue-500 border-t-transparent rounded-full mx-auto"></div>
+                                <div className="animate-spin h-6 w-6 border-2 border-brand-primary border-t-transparent rounded-full mx-auto"></div>
                             </div>
                         ) : notifications.length === 0 ? (
                             <div className="px-4 py-8 text-center text-gray-500">
@@ -162,14 +162,14 @@ function NotificationBell() {
                                 <div
                                     key={notification.id}
                                     className={`px-4 py-3 border-b border-gray-100 hover:bg-gray-50 transition-colors ${
-                                        !notification.is_read ? 'bg-blue-50' : ''
+                                        !notification.is_read ? 'bg-brand-primary-soft/50' : ''
                                     }`}
                                 >
                                     <div className="flex items-start justify-between gap-2">
                                         <div className="flex-1 min-w-0">
                                             <div className="flex items-center gap-2">
                                                 {!notification.is_read && (
-                                                    <span className="w-2 h-2 bg-blue-500 rounded-full flex-shrink-0"></span>
+                                                    <span className="w-2 h-2 bg-brand-primary rounded-full flex-shrink-0"></span>
                                                 )}
                                                 <h4 className="text-sm font-medium text-gray-900 truncate">
                                                     {notification.title}
@@ -185,7 +185,7 @@ function NotificationBell() {
                                                 {notification.data?.deal_id && (
                                                     <Link
                                                         href={`/deals/${notification.data.deal_id}`}
-                                                        className="text-xs text-blue-600 hover:text-blue-800 font-medium"
+                                                        className="text-xs text-brand-primary hover:text-brand-primary-hover font-medium"
                                                         onClick={() => setIsOpen(false)}
                                                     >
                                                         View Deal
@@ -219,41 +219,41 @@ export default function Navbar() {
     const { session, loading, signOut } = useAuth();
 
     return (
-        <nav className="bg-white border-b border-gray-200">
+        <nav className="bg-brand-primary-deep border-b border-brand-primary-deep">
             <div className="container mx-auto px-4">
                 <div className="flex justify-between h-16">
                     <div className="flex">
-                        <Link href="/" className="flex-shrink-0 flex items-center font-bold text-xl text-blue-600">
+                        <Link href="/" className="flex-shrink-0 flex items-center font-bold text-xl text-white">
                             ScoutzOS
                         </Link>
                         <div className="hidden sm:ml-6 sm:flex sm:space-x-8">
                             <Link
                                 href="/deals"
-                                className="border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700 inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium"
+                                className="border-transparent text-white/80 hover:border-white/50 hover:text-white inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium transition-colors"
                             >
                                 Deals
                             </Link>
                             <Link
                                 href="/buy-boxes"
-                                className="border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700 inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium"
+                                className="border-transparent text-white/80 hover:border-white/50 hover:text-white inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium transition-colors"
                             >
                                 Buy Boxes
                             </Link>
                             <Link
                                 href="/pipeline"
-                                className="border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700 inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium"
+                                className="border-transparent text-white/80 hover:border-white/50 hover:text-white inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium transition-colors"
                             >
                                 Pipeline
                             </Link>
                             <Link
                                 href="/investors"
-                                className="border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700 inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium"
+                                className="border-transparent text-white/80 hover:border-white/50 hover:text-white inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium transition-colors"
                             >
                                 Investors
                             </Link>
                             <Link
                                 href="/properties"
-                                className="border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700 inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium"
+                                className="border-transparent text-white/80 hover:border-white/50 hover:text-white inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium transition-colors"
                             >
                                 Properties
                             </Link>
@@ -261,16 +261,16 @@ export default function Navbar() {
                     </div>
                     <div className="flex items-center gap-2">
                         {loading ? (
-                            <div className="h-8 w-8 animate-pulse bg-gray-200 rounded-full"></div>
+                            <div className="h-8 w-8 animate-pulse bg-white/20 rounded-full"></div>
                         ) : session ? (
                             <div className="flex items-center gap-4">
                                 <NotificationBell />
-                                <span className="text-sm text-gray-700 hidden md:block">
+                                <span className="text-sm text-white/90 hidden md:block">
                                     {session.user.email}
                                 </span>
                                 <button
                                     onClick={() => signOut()}
-                                    className="text-sm font-medium text-gray-500 hover:text-gray-700"
+                                    className="text-sm font-medium text-white/80 hover:text-white transition-colors"
                                 >
                                     Sign out
                                 </button>
@@ -279,13 +279,13 @@ export default function Navbar() {
                             <div className="flex items-center gap-4">
                                 <Link
                                     href="/login"
-                                    className="text-sm font-medium text-gray-500 hover:text-gray-900"
+                                    className="text-sm font-medium text-white/80 hover:text-white transition-colors"
                                 >
                                     Sign in
                                 </Link>
                                 <Link
                                     href="/signup"
-                                    className="bg-blue-600 text-white px-4 py-2 rounded-md text-sm font-medium hover:bg-blue-700"
+                                    className="bg-brand-primary text-white px-4 py-2 rounded-lg text-sm font-semibold hover:bg-brand-primary-hover transition-colors"
                                 >
                                     Sign up
                                 </Link>

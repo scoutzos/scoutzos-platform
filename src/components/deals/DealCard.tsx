@@ -8,8 +8,8 @@ interface DealCardProps {
 export default function DealCard({ deal }: DealCardProps) {
     return (
         <Link href={`/deals/${deal.id}`} className="block group">
-            <div className="border rounded-lg overflow-hidden shadow-sm hover:shadow-md transition-shadow bg-white dark:bg-gray-800 dark:border-gray-700">
-                <div className="aspect-video bg-gray-200 relative overflow-hidden">
+            <div className="border border-gray-200 rounded-xl overflow-hidden shadow-card hover:shadow-card-hover transition-all bg-white card-interactive">
+                <div className="aspect-video bg-gray-100 relative overflow-hidden">
                     {deal.photos && deal.photos.length > 0 ? (
                         <img
                             src={deal.photos[0]}
@@ -21,27 +21,27 @@ export default function DealCard({ deal }: DealCardProps) {
                             No Image
                         </div>
                     )}
-                    <div className="absolute top-2 right-2 bg-black/50 text-white text-xs px-2 py-1 rounded backdrop-blur-sm uppercase font-semibold">
+                    <div className="absolute top-2 right-2 bg-brand-primary-deep/80 text-white text-xs px-2 py-1 rounded-full backdrop-blur-sm uppercase font-semibold">
                         {deal.status.replace('_', ' ')}
                     </div>
                 </div>
                 <div className="p-4">
-                    <h3 className="font-semibold text-lg truncate">{deal.address_line1}</h3>
+                    <h3 className="font-semibold text-lg truncate text-gray-900">{deal.address_line1}</h3>
                     <p className="text-gray-500 text-sm mb-2">{deal.city}, {deal.state} {deal.zip}</p>
                     <div className="flex items-center justify-between mt-4">
-                        <span className="text-xl font-bold text-green-600">
+                        <span className="text-xl font-bold text-brand-primary">
                             ${deal.list_price.toLocaleString()}
                         </span>
                     </div>
-                    <div className="flex items-center gap-4 mt-3 text-sm text-gray-600 dark:text-gray-400">
+                    <div className="flex items-center gap-4 mt-3 text-sm text-gray-600">
                         <div className="flex items-center gap-1">
-                            <span>{deal.beds || '-'}</span> <span className="text-xs uppercase">Beds</span>
+                            <span className="font-medium">{deal.beds || '-'}</span> <span className="text-xs uppercase text-gray-400">Beds</span>
                         </div>
                         <div className="flex items-center gap-1">
-                            <span>{deal.baths || '-'}</span> <span className="text-xs uppercase">Baths</span>
+                            <span className="font-medium">{deal.baths || '-'}</span> <span className="text-xs uppercase text-gray-400">Baths</span>
                         </div>
                         <div className="flex items-center gap-1">
-                            <span>{deal.sqft ? deal.sqft.toLocaleString() : '-'}</span> <span className="text-xs uppercase">Sqft</span>
+                            <span className="font-medium">{deal.sqft ? deal.sqft.toLocaleString() : '-'}</span> <span className="text-xs uppercase text-gray-400">Sqft</span>
                         </div>
                     </div>
                 </div>

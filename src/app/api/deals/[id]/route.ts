@@ -39,6 +39,37 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
     }
 }
 
+export async function PATCH(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+    try {
+        const { id } = await params;
+        const supabase = await createClient();
+        const { data: { user }, error: authError } = await supabase.auth.getUser();
+        if (authError || !user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+        const tenantId = await getTenantIdForUser(user.id);
+        if (!tenantId) return NextResponse.json({ error: 'User not associated with a tenant' }, { status: 403 });
+
+        const body = await request.json();
+        // Only allow certain fields to be patched
+        const allowedFields = ['status', 'notes', 'estimated_rent'];
+        const updates: Record<string, unknown> = {};
+        for (const field of allowedFields) {
+            if (body[field] !== undefined) {
+                updates[field] = body[field];
+            }
+        }
+
+        if (Object.keys(updates).length === 0) {
+            return NextResponse.json({ error: 'No valid fields to update' }, { status: 400 });
+        }
+
+        const { data: deal, error } = await supabaseAdmin.from('deals').update(updates).eq('id', id).eq('tenant_id', tenantId).select().single();
+        if (error) return NextResponse.json({ error: error.code === 'PGRST116' ? 'Deal not found' : 'Failed to update deal' }, { status: error.code === 'PGRST116' ? 404 : 500 });
+        return NextResponse.json({ deal });
+    } catch (error) {
+        return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+    }
+}
+
 export async function DELETE(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
     try {
         const { id } = await params;

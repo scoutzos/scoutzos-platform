@@ -4,6 +4,7 @@ import { createClient } from "@/lib/supabase/server";
 import { supabaseAdmin, getTenantIdForUser } from "@/lib/supabase/admin";
 import { DealStatus } from "@/types/deals";
 import { getRentEstimate, mapPropertyType } from "@/lib/rentCast";
+import { matchDealToAllBuyBoxes } from "@/lib/services/matching";
 
 export type ImportDealInput = {
   address: string;
@@ -141,6 +142,8 @@ export async function POST(request: NextRequest) {
           .eq("state", payload.state)
           .single();
 
+        let dealId: string | null = null;
+
         if (existingDeal) {
           // Update existing deal with all fields
           const { error } = await supabaseAdmin
@@ -168,15 +171,26 @@ export async function POST(request: NextRequest) {
           if (error) {
             throw error;
           }
+          dealId = existingDeal.id;
         } else {
           // Insert new deal
-          const { error } = await supabaseAdmin
+          const { data: newDeal, error } = await supabaseAdmin
             .from("deals")
-            .insert(payload);
+            .insert(payload)
+            .select("id")
+            .single();
 
           if (error) {
             throw error;
           }
+          dealId = newDeal?.id ?? null;
+        }
+
+        // Auto-match deal to all buy boxes (run in background)
+        if (dealId) {
+          matchDealToAllBuyBoxes(dealId, tenantId).catch(err =>
+            console.error(`[Auto-Match] Failed for deal ${dealId}:`, err)
+          );
         }
 
         imported++;

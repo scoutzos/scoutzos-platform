@@ -184,6 +184,13 @@ export async function matchDealToAllBuyBoxes(dealId: string, tenantId: string): 
         const result = scoreDealForBuyBox(deal as Deal, metrics, buyBox as BuyBox);
         results.push(result);
         await supabaseAdmin.from('deal_matches').upsert({ deal_id: dealId, buy_box_id: buyBox.id, user_id: buyBox.user_id, match_score: result.match_score, match_reasons: result.match_reasons }, { onConflict: 'deal_id,user_id' });
+
+        // Trigger email alert for high-score matches (>= 80%)
+        if (result.match_score >= 80) {
+            console.log(`[EMAIL ALERT] Deal ${dealId} matches buy box ${buyBox.id} (${buyBox.name}) with score ${result.match_score}%`);
+            // Optionally call the email API endpoint
+            // await fetch('/api/alerts/send-match-email', { method: 'POST', body: JSON.stringify({ deal_id: dealId, buy_box_id: buyBox.id, match_score: result.match_score }) });
+        }
     }
     results.sort((a, b) => b.match_score - a.match_score);
     return results;
