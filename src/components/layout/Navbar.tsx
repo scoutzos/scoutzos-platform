@@ -161,9 +161,8 @@ function NotificationBell() {
                             notifications.map((notification) => (
                                 <div
                                     key={notification.id}
-                                    className={`px-4 py-3 border-b border-gray-100 hover:bg-gray-50 transition-colors ${
-                                        !notification.is_read ? 'bg-brand-primary-soft/50' : ''
-                                    }`}
+                                    className={`px-4 py-3 border-b border-gray-100 hover:bg-gray-50 transition-colors ${!notification.is_read ? 'bg-brand-primary-soft/50' : ''
+                                        }`}
                                 >
                                     <div className="flex items-start justify-between gap-2">
                                         <div className="flex-1 min-w-0">
@@ -215,16 +214,19 @@ function NotificationBell() {
     );
 }
 
+import { Logo } from '@/components/branding/Logo';
+import { ThemeToggle } from '@/components/ui/ThemeToggle';
+
 export default function Navbar() {
     const { session, loading, signOut } = useAuth();
 
     return (
-        <nav className="bg-brand-primary-deep border-b border-brand-primary-deep">
+        <nav className="bg-brand-primary-deep/95 dark:bg-gray-900/95 backdrop-blur-md border-b border-white/10 dark:border-gray-800 sticky top-0 z-50">
             <div className="container mx-auto px-4">
                 <div className="flex justify-between h-16">
                     <div className="flex">
-                        <Link href="/" className="flex-shrink-0 flex items-center font-bold text-xl text-white">
-                            ScoutzOS
+                        <Link href="/" className="flex-shrink-0 flex items-center">
+                            <Logo className="text-white" />
                         </Link>
                         <div className="hidden sm:ml-6 sm:flex sm:space-x-8">
                             <Link
@@ -260,6 +262,7 @@ export default function Navbar() {
                         </div>
                     </div>
                     <div className="flex items-center gap-2">
+                        <ThemeToggle />
                         {loading ? (
                             <div className="h-8 w-8 animate-pulse bg-white/20 rounded-full"></div>
                         ) : session ? (

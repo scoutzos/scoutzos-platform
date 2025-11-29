@@ -4,6 +4,10 @@ import { useState } from 'react';
 import { createClient } from '@/lib/supabase/client';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
+import { Logo } from '@/components/branding/Logo';
+import { Button } from '@/components/ui/Button';
+import { Input } from '@/components/ui/Input';
+import { CheckCircle } from 'lucide-react';
 
 export default function LoginPage() {
   const [email, setEmail] = useState('');
@@ -39,71 +43,113 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="flex min-h-screen flex-col items-center justify-center py-12 px-4 sm:px-6 lg:px-8 bg-gray-50">
-      <div className="w-full max-w-md space-y-8">
-        <div>
-          <h2 className="mt-6 text-center text-3xl font-bold tracking-tight text-gray-900">
-            Sign in to your account
-          </h2>
-          <p className="mt-2 text-center text-sm text-gray-600">
-            Or{' '}
-            <Link href="/signup" className="font-medium text-blue-600 hover:text-blue-500">
-              create a new account
-            </Link>
-          </p>
-        </div>
-        <form className="mt-8 space-y-6" onSubmit={handleLogin}>
-          {error && (
-            <div className="rounded-md bg-red-50 p-4 text-sm text-red-700">
-              {error}
-            </div>
-          )}
-          <div className="-space-y-px rounded-md shadow-sm">
-            <div>
-              <label htmlFor="email-address" className="sr-only">
-                Email address
-              </label>
-              <input
-                id="email-address"
-                name="email"
-                type="email"
-                autoComplete="email"
-                required
-                className="relative block w-full rounded-t-md border-0 py-1.5 text-gray-900 ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:z-10 focus:ring-2 focus:ring-inset focus:ring-blue-600 sm:text-sm sm:leading-6 px-3"
-                placeholder="Email address"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-              />
-            </div>
-            <div>
-              <label htmlFor="password" className="sr-only">
-                Password
-              </label>
-              <input
-                id="password"
-                name="password"
-                type="password"
-                autoComplete="current-password"
-                required
-                className="relative block w-full rounded-b-md border-0 py-1.5 text-gray-900 ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:z-10 focus:ring-2 focus:ring-inset focus:ring-blue-600 sm:text-sm sm:leading-6 px-3"
-                placeholder="Password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-              />
-            </div>
+    <div className="min-h-screen grid lg:grid-cols-2">
+      {/* Left side - Form */}
+      <div className="flex items-center justify-center p-8 bg-gray-50">
+        <div className="w-full max-w-md">
+          <Logo className="mb-8 text-gray-900" />
+
+          <div className="mb-8">
+            <h1 className="text-3xl font-bold text-gray-900 mb-2">Welcome back</h1>
+            <p className="text-gray-600">
+              Sign in to access your deal pipeline
+            </p>
           </div>
 
-          <div>
-            <button
+          <form onSubmit={handleLogin} className="space-y-6">
+            {error && (
+              <div className="rounded-lg bg-error-soft border border-error p-4 text-sm text-error">
+                {error}
+              </div>
+            )}
+
+            <Input
+              label="Email address"
+              type="email"
+              autoComplete="email"
+              required
+              placeholder="you@example.com"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+            />
+
+            <Input
+              label="Password"
+              type="password"
+              autoComplete="current-password"
+              required
+              placeholder="Enter your password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+            />
+
+            <div className="flex items-center justify-between">
+              <label className="flex items-center gap-2">
+                <input
+                  type="checkbox"
+                  className="w-4 h-4 text-brand-primary border-gray-300 rounded focus:ring-brand-primary"
+                />
+                <span className="text-sm text-gray-600">Remember me</span>
+              </label>
+              <Link href="/forgot-password" className="text-sm font-medium text-brand-primary hover:text-brand-primary-hover">
+                Forgot password?
+              </Link>
+            </div>
+
+            <Button
               type="submit"
-              disabled={loading}
-              className="group relative flex w-full justify-center rounded-md bg-blue-600 px-3 py-2 text-sm font-semibold text-white hover:bg-blue-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600 disabled:opacity-50"
+              loading={loading}
+              fullWidth
+              size="lg"
             >
               {loading ? 'Signing in...' : 'Sign in'}
-            </button>
-          </div>
-        </form>
+            </Button>
+
+            <p className="text-center text-sm text-gray-600">
+              Don't have an account?{' '}
+              <Link href="/signup" className="font-medium text-brand-primary hover:text-brand-primary-hover">
+                Sign up for free
+              </Link>
+            </p>
+          </form>
+        </div>
       </div>
+
+      {/* Right side - Hero */}
+      <div className="hidden lg:flex bg-gradient-to-br from-brand-primary to-brand-primary-deep p-12">
+        <div className="flex flex-col justify-center text-white max-w-lg">
+          <h2 className="text-4xl font-bold mb-4">
+            Find your next great investment
+          </h2>
+          <p className="text-xl text-white/90 mb-8">
+            AI-powered deal analysis for real estate investors
+          </p>
+
+          <div className="space-y-4">
+            <Feature text="Automated underwriting & analysis" />
+            <Feature text="Smart deal matching with buy boxes" />
+            <Feature text="Portfolio analytics & tracking" />
+            <Feature text="Real-time market insights" />
+          </div>
+
+          <div className="mt-12 p-6 bg-white/10 backdrop-blur-sm rounded-xl border border-white/20">
+            <p className="text-sm text-white/80 mb-2">Trusted by investors managing</p>
+            <p className="text-3xl font-bold">$38M+</p>
+            <p className="text-sm text-white/80 mt-1">in deal pipeline</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function Feature({ text }: { text: string }) {
+  return (
+    <div className="flex items-center gap-3">
+      <div className="flex-shrink-0 w-6 h-6 bg-brand-ai rounded-full flex items-center justify-center">
+        <CheckCircle className="w-4 h-4 text-white" />
+      </div>
+      <span className="text-white/90">{text}</span>
     </div>
   );
 }

@@ -85,11 +85,21 @@
   --foreground: #111827;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+.dark {
+  --background: #0B0D10;
+  --foreground: #F9FAFB;
+
+  /* Dark mode overrides */
+  --color-gray-50: #1F2937;
+  --color-gray-100: #374151;
+  --color-gray-200: #4B5563;
+  --color-gray-300: #6B7280;
+  --color-gray-400: #9CA3AF;
+  --color-gray-500: #D1D5DB;
+  --color-gray-600: #E5E7EB;
+  --color-gray-700: #F3F4F6;
+  --color-gray-800: #F9FAFB;
+  --color-gray-900: #FFFFFF;
 }
 
 body {
@@ -163,10 +173,21 @@ body {
   border-radius: 9999px;
 }
 
-.status-dot-success { background-color: var(--color-success); }
-.status-dot-warning { background-color: var(--color-warning); }
-.status-dot-error { background-color: var(--color-error); }
-.status-dot-info { background-color: var(--color-info); }
+.status-dot-success {
+  background-color: var(--color-success);
+}
+
+.status-dot-warning {
+  background-color: var(--color-warning);
+}
+
+.status-dot-error {
+  background-color: var(--color-error);
+}
+
+.status-dot-info {
+  background-color: var(--color-info);
+}
 
 /* AI Surface styling */
 .ai-surface {
@@ -182,13 +203,25 @@ body {
 }
 
 @keyframes skeleton-loading {
-  0% { background-position: 200% 0; }
-  100% { background-position: -200% 0; }
+  0% {
+    background-position: 200% 0;
+  }
+
+  100% {
+    background-position: -200% 0;
+  }
 }
 
 @keyframes pulse-slow {
-  0%, 100% { opacity: 1; }
-  50% { opacity: 0.6; }
+
+  0%,
+  100% {
+    opacity: 1;
+  }
+
+  50% {
+    opacity: 0.6;
+  }
 }
 
 .animate-pulse-slow {
@@ -353,4 +386,43 @@ body {
 
 .dashboard-edit-mode .react-grid-item:hover {
   box-shadow: var(--shadow-elevation-2);
+}
+
+/* Focus States for Accessibility */
+*:focus-visible {
+  outline: 2px solid var(--color-brand-primary);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+button:focus-visible,
+a:focus-visible {
+  outline: 2px solid var(--color-brand-primary);
+  outline-offset: 2px;
+}
+
+input:focus-visible,
+textarea:focus-visible,
+select:focus-visible {
+  outline: none;
+  border-color: var(--color-brand-primary);
+  ring: 4px;
+  ring-color: rgba(2, 132, 199, 0.1);
+}
+
+/* Skip to main content link */
+.skip-to-main {
+  position: absolute;
+  left: -9999px;
+  z-index: 999;
+  padding: 1rem 1.5rem;
+  background: var(--color-brand-primary);
+  color: white;
+  text-decoration: none;
+  border-radius: 0.5rem;
+}
+
+.skip-to-main:focus {
+  left: 1rem;
+  top: 1rem;
 }

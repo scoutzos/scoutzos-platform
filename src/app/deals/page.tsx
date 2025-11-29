@@ -164,9 +164,8 @@ function QuickActionMenu({ deal, onStatusChange, onActionComplete }: QuickAction
                                     <button
                                         key={status}
                                         onClick={(e) => { e.preventDefault(); handleChangeStatus(status); }}
-                                        className={`w-full px-4 py-2 text-left text-sm hover:bg-gray-50 capitalize ${
-                                            deal.status === status ? 'text-brand-primary font-medium' : 'text-gray-700'
-                                        }`}
+                                        className={`w-full px-4 py-2 text-left text-sm hover:bg-gray-50 capitalize ${deal.status === status ? 'text-brand-primary font-medium' : 'text-gray-700'
+                                            }`}
                                     >
                                         {status.replace('_', ' ')}
                                     </button>
@@ -242,140 +241,151 @@ export default function DealsPage() {
     }
 
     return (
-        <div className="container mx-auto px-4 py-8">
-            {/* Toast notification */}
-            {toast && (
-                <div className="fixed top-4 right-4 bg-gray-900 text-white px-4 py-2 rounded-lg shadow-lg z-50 animate-fade-in">
-                    {toast}
-                </div>
-            )}
-
-            <div className="flex justify-between items-center mb-6">
-                <div className="flex items-center gap-4">
-                    <h1 className="text-2xl font-bold text-gray-900">Deals</h1>
-                    {selectedDeals.size >= 2 && (
-                        <button
-                            onClick={handleCompare}
-                            className="bg-brand-ai text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-brand-ai-strong transition-colors"
-                        >
-                            Compare Selected ({selectedDeals.size})
-                        </button>
-                    )}
-                </div>
-                <div className="flex items-center space-x-4">
-                    <div className="bg-gray-100 p-1 rounded-lg flex">
-                        <button
-                            onClick={() => setViewMode('list')}
-                            className={`px-3 py-1.5 text-sm font-medium rounded-md ${viewMode === 'list' ? 'bg-white shadow text-gray-900' : 'text-gray-500 hover:text-gray-900'}`}
-                        >
-                            List
-                        </button>
-                        <button
-                            onClick={() => setViewMode('map')}
-                            className={`px-3 py-1.5 text-sm font-medium rounded-md ${viewMode === 'map' ? 'bg-white shadow text-gray-900' : 'text-gray-500 hover:text-gray-900'}`}
-                        >
-                            Map
-                        </button>
+        <div className="min-h-screen bg-gray-50">
+            <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8">
+                {/* Toast notification */}
+                {toast && (
+                    <div className="fixed top-4 right-4 bg-gray-900 text-white px-4 py-2 rounded-lg shadow-lg z-50 animate-slide-in">
+                        {toast}
                     </div>
-                    <Link
-                        href="/deals/swipe"
-                        className="flex items-center gap-2 rounded-lg bg-brand-primary-soft px-3.5 py-2.5 text-sm font-semibold text-brand-primary hover:bg-brand-primary hover:text-white transition-colors"
-                    >
-                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16V4m0 0L3 8m4-4l4 4m6 0v12m0 0l4-4m-4 4l-4-4" />
-                        </svg>
-                        Swipe
-                    </Link>
-                    <Link
-                        href="/deals/import"
-                        className="rounded-lg bg-brand-primary px-3.5 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-brand-primary-hover transition-colors"
-                    >
-                        Import Deals
-                    </Link>
-                </div>
-            </div>
+                )}
 
-            {deals.length === 0 && viewMode === 'list' ? (
-                <div className="text-center py-12 bg-gray-50 rounded-lg">
-                    <p className="text-gray-500 text-lg">No deals found. Start by adding one!</p>
+                <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4 mb-6">
+                    <div className="flex items-center gap-4">
+                        <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">Deals</h1>
+                        {selectedDeals.size >= 2 && (
+                            <button
+                                onClick={handleCompare}
+                                className="bg-brand-ai text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-brand-ai-strong transition-colors"
+                            >
+                                Compare ({selectedDeals.size})
+                            </button>
+                        )}
+                    </div>
+                    <div className="flex flex-wrap items-center gap-3">
+                        <div className="bg-gray-100 p-1 rounded-lg flex">
+                            <button
+                                onClick={() => setViewMode('list')}
+                                className={`px-3 py-1.5 text-sm font-medium rounded-md ${viewMode === 'list' ? 'bg-white shadow text-gray-900' : 'text-gray-500 hover:text-gray-900'}`}
+                            >
+                                List
+                            </button>
+                            <button
+                                onClick={() => setViewMode('map')}
+                                className={`px-3 py-1.5 text-sm font-medium rounded-md ${viewMode === 'map' ? 'bg-white shadow text-gray-900' : 'text-gray-500 hover:text-gray-900'}`}
+                            >
+                                Map
+                            </button>
+                        </div>
+                        <Link
+                            href="/deals/swipe"
+                            className="flex items-center gap-2 rounded-lg bg-brand-primary-soft px-3.5 py-2.5 text-sm font-semibold text-brand-primary hover:bg-brand-primary hover:text-white transition-colors"
+                        >
+                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16V4m0 0L3 8m4-4l4 4m6 0v12m0 0l4-4m-4 4l-4-4" />
+                            </svg>
+                            Swipe
+                        </Link>
+                        <Link
+                            href="/deals/import"
+                            className="rounded-lg bg-brand-primary px-3.5 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-brand-primary-hover transition-colors"
+                        >
+                            Import Deals
+                        </Link>
+                    </div>
                 </div>
-            ) : viewMode === 'map' ? (
-                <DealMap deals={deals} />
-            ) : (
-                <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
-                    {deals.map((deal) => (
-                        <div key={deal.id} className="relative group">
-                            {/* Selection checkbox */}
-                            <div
-                                onClick={(e) => toggleDealSelection(deal.id, e)}
-                                className={`absolute top-2 left-2 z-10 w-6 h-6 rounded-md border-2 cursor-pointer transition-all ${
-                                    selectedDeals.has(deal.id)
+
+                {deals.length === 0 && viewMode === 'list' ? (
+                    <div className="text-center py-12 bg-white rounded-xl border border-gray-200">
+                        <div className="w-16 h-16 mx-auto mb-4 bg-gray-100 rounded-full flex items-center justify-center">
+                            <svg className="w-8 h-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
+                            </svg>
+                        </div>
+                        <h3 className="text-lg font-semibold text-gray-900 mb-2">No deals yet</h3>
+                        <p className="text-gray-500 mb-6">Get started by importing deals or connecting to a data source</p>
+                        <Link
+                            href="/deals/import"
+                            className="inline-flex items-center gap-2 px-4 py-2.5 bg-brand-primary text-white rounded-lg font-semibold hover:bg-brand-primary-hover transition-colors"
+                        >
+                            Import Your First Deal
+                        </Link>
+                    </div>
+                ) : viewMode === 'map' ? (
+                    <DealMap deals={deals} />
+                ) : (
+                    <div className="grid grid-cols-1 gap-4 sm:gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+                        {deals.map((deal) => (
+                            <div key={deal.id} className="relative group">
+                                {/* Selection checkbox */}
+                                <div
+                                    onClick={(e) => toggleDealSelection(deal.id, e)}
+                                    className={`absolute top-2 left-2 z-10 w-6 h-6 rounded-md border-2 cursor-pointer transition-all ${selectedDeals.has(deal.id)
                                         ? 'bg-brand-primary border-brand-primary'
                                         : 'bg-white/90 border-gray-300 opacity-0 group-hover:opacity-100'
-                                }`}
-                            >
-                                {selectedDeals.has(deal.id) && (
-                                    <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
-                                    </svg>
-                                )}
-                            </div>
-
-                            {/* Quick actions menu */}
-                            <div className="absolute top-2 right-12 z-10">
-                                <QuickActionMenu
-                                    deal={deal}
-                                    onStatusChange={handleStatusChange}
-                                    onActionComplete={setToast}
-                                />
-                            </div>
-
-                            <Link href={`/deals/${deal.id}`} className="block">
-                                <div className="bg-white overflow-hidden shadow rounded-lg hover:shadow-md transition-shadow">
-                                    <div className="h-48 bg-gray-200 relative">
-                                        {deal.photos && deal.photos.length > 0 ? (
-                                            <img src={deal.photos[0]} alt={deal.address_line1} className="w-full h-full object-cover" />
-                                        ) : (
-                                            <div className="flex items-center justify-center h-full text-gray-400">
-                                                No Image
-                                            </div>
-                                        )}
-                                        <div className="absolute top-2 right-2">
-                                            <span className={`inline-flex items-center rounded-full px-2 py-1 text-xs font-medium ${
-                                                deal.status === 'new' ? 'bg-blue-100 text-blue-800' :
-                                                deal.status === 'analyzing' ? 'bg-yellow-100 text-yellow-800' :
-                                                deal.status === 'saved' ? 'bg-green-100 text-green-800' :
-                                                deal.status === 'offered' ? 'bg-purple-100 text-purple-800' :
-                                                deal.status === 'under_contract' ? 'bg-orange-100 text-orange-800' :
-                                                deal.status === 'closed' ? 'bg-brand-ai-soft text-brand-ai-strong' :
-                                                'bg-gray-100 text-gray-800'
-                                            }`}>
-                                                {deal.status.replace('_', ' ').toUpperCase()}
-                                            </span>
-                                        </div>
-                                    </div>
-                                    <div className="px-4 py-4">
-                                        <h3 className="text-lg font-medium text-gray-900 group-hover:text-blue-600 truncate">
-                                            {deal.address_line1}
-                                        </h3>
-                                        <p className="text-sm text-gray-500 truncate">
-                                            {deal.city}, {deal.state} {deal.zip}
-                                        </p>
-                                        <div className="mt-4 flex justify-between items-center">
-                                            <span className="text-xl font-bold text-gray-900">
-                                                {formatCurrency(deal.list_price)}
-                                            </span>
-                                            <div className="text-sm text-gray-500">
-                                                {deal.beds}bd {deal.baths}ba {deal.sqft?.toLocaleString()}sqft
-                                            </div>
-                                        </div>
-                                    </div>
+                                        }`}
+                                >
+                                    {selectedDeals.has(deal.id) && (
+                                        <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
+                                        </svg>
+                                    )}
                                 </div>
-                            </Link>
-                        </div>
-                    ))}
-                </div>
-            )}
-        </div>
-    );
+
+                                {/* Quick actions menu */}
+                                <div className="absolute top-2 right-12 z-10">
+                                    <QuickActionMenu
+                                        deal={deal}
+                                        onStatusChange={handleStatusChange}
+                                        onActionComplete={setToast}
+                                    />
+                                </div>
+
+                                <Link href={`/deals/${deal.id}`} className="block">
+                                    <div className="bg-white overflow-hidden shadow rounded-lg hover:shadow-md transition-shadow">
+                                        <div className="h-48 bg-gray-200 relative">
+                                            {deal.photos && deal.photos.length > 0 ? (
+                                                <img src={deal.photos[0]} alt={deal.address_line1} className="w-full h-full object-cover" />
+                                            ) : (
+                                                <div className="flex items-center justify-center h-full text-gray-400">
+                                                    No Image
+                                                </div>
+                                            )}
+                                            <div className="absolute top-2 right-2">
+                                                <span className={`inline-flex items-center rounded-full px-2 py-1 text-xs font-medium ${deal.status === 'new' ? 'bg-blue-100 text-blue-800' :
+                                                    deal.status === 'analyzing' ? 'bg-yellow-100 text-yellow-800' :
+                                                        deal.status === 'saved' ? 'bg-green-100 text-green-800' :
+                                                            deal.status === 'offered' ? 'bg-purple-100 text-purple-800' :
+                                                                deal.status === 'under_contract' ? 'bg-orange-100 text-orange-800' :
+                                                                    deal.status === 'closed' ? 'bg-brand-ai-soft text-brand-ai-strong' :
+                                                                        'bg-gray-100 text-gray-800'
+                                                    }`}>
+                                                    {deal.status.replace('_', ' ').toUpperCase()}
+                                                </span>
+                                            </div>
+                                        </div>
+                                        <div className="px-4 py-4">
+                                            <h3 className="text-lg font-medium text-gray-900 group-hover:text-blue-600 truncate">
+                                                {deal.address_line1}
+                                            </h3>
+                                            <p className="text-sm text-gray-500 truncate">
+                                                {deal.city}, {deal.state} {deal.zip}
+                                            </p>
+                                            <div className="mt-4 flex justify-between items-center">
+                                                <span className="text-xl font-bold text-gray-900">
+                                                    {formatCurrency(deal.list_price)}
+                                                </span>
+                                                <div className="text-sm text-gray-500">
+                                                    {deal.beds}bd {deal.baths}ba {deal.sqft?.toLocaleString()}sqft
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </Link>
+                            </div>
+                        ))}
+                    </div>
+                )}
+            </div>
+            );
 }
