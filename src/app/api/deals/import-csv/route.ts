@@ -1,8 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase/admin';
 import { matchDealToAllBuyBoxes } from '@/lib/services/matching';
-
-const TENANT_ID = 'a0000000-0000-0000-0000-000000000001';
+import { requireTenantId } from '@/lib/auth-helpers';
 
 interface CSVDeal {
     address_line1: string;
@@ -19,6 +18,14 @@ interface CSVDeal {
 
 export async function POST(request: NextRequest) {
     try {
+        // Get the tenant_id from the authenticated user
+        let tenantId: string;
+        try {
+            tenantId = await requireTenantId();
+        } catch {
+            return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+        }
+
         const { deals } = await request.json() as { deals: CSVDeal[] };
 
         if (!deals || !Array.isArray(deals) || deals.length === 0) {
@@ -40,7 +47,7 @@ export async function POST(request: NextRequest) {
 
         // Prepare deals for insertion
         const dealsToInsert = validDeals.map(deal => ({
-            tenant_id: TENANT_ID,
+            tenant_id: tenantId,
             source: 'csv_import',
             address_line1: deal.address_line1,
             city: deal.city,
@@ -72,7 +79,7 @@ export async function POST(request: NextRequest) {
         let matchedCount = 0;
         for (const deal of insertedDeals || []) {
             try {
-                const matches = await matchDealToAllBuyBoxes(deal.id, TENANT_ID);
+                const matches = await matchDealToAllBuyBoxes(deal.id, tenantId);
                 if (matches.some(m => m.is_match)) {
                     matchedCount++;
                 }

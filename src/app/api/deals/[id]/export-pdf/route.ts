@@ -1,8 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase/admin';
 
-const TENANT_ID = 'a0000000-0000-0000-0000-000000000001';
-
 export async function GET(
     request: NextRequest,
     { params }: { params: Promise<{ id: string }> }
@@ -15,7 +13,6 @@ export async function GET(
             .from('deals')
             .select('*')
             .eq('id', dealId)
-            .eq('tenant_id', TENANT_ID)
             .single();
 
         if (dealError || !deal) {

@@ -1,8 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase/admin';
 
-const TENANT_ID = 'a0000000-0000-0000-0000-000000000001';
-
 export async function POST(request: NextRequest) {
     try {
         const { deal_id, buy_box_id, match_score } = await request.json();

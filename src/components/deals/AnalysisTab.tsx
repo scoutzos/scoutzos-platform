@@ -5,6 +5,7 @@ import { UnderwritingResult, formatCurrency, formatPercent, getRatingColor, getR
 import { Deal } from '@/types/deals';
 import { createClient } from '@/lib/supabase/client';
 import { QuickEditForm } from './QuickEditForm';
+import { calculateSmartRentEstimate, getConfidenceColor, getConfidenceBgColor, SmartRentEstimate } from '@/lib/rentCast';
 
 interface AnalysisTabProps {
     dealId: string;
@@ -49,6 +50,16 @@ export default function AnalysisTab({ dealId, dealData }: AnalysisTabProps) {
         if (!calculatedAt || !dealData?.updated_at) return false;
         return new Date(dealData.updated_at) > new Date(calculatedAt);
     }, [calculatedAt, dealData?.updated_at]);
+
+    // Calculate smart rent estimate
+    const smartRentEstimate = useMemo<SmartRentEstimate | null>(() => {
+        if (!dealData) return null;
+        return calculateSmartRentEstimate(
+            dealData.zillow_rent_estimate,
+            dealData.rentcast_rent_estimate,
+            dealData.list_price
+        );
+    }, [dealData]);
 
     // Check if assumptions have been modified from saved values
     const isModified = useMemo(() => {
@@ -545,6 +556,79 @@ export default function AnalysisTab({ dealId, dealData }: AnalysisTabProps) {
                     )}
                 </div>
             </div>
+
+            {/* Smart Rent Estimate Section */}
+            {smartRentEstimate && (
+                <div className="overflow-hidden rounded-lg bg-white shadow">
+                    <div className="px-4 py-5 sm:p-6">
+                        <div className="flex items-center justify-between mb-4">
+                            <h3 className="text-base font-semibold leading-6 text-gray-900">Rent Estimate</h3>
+                            <div className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getConfidenceBgColor(smartRentEstimate.confidence)} ${getConfidenceColor(smartRentEstimate.confidence)}`}>
+                                {smartRentEstimate.confidence === 'high' && '✓ High Confidence'}
+                                {smartRentEstimate.confidence === 'medium' && '◐ Medium Confidence'}
+                                {smartRentEstimate.confidence === 'low' && '⚠ Low Confidence'}
+                                {smartRentEstimate.confidence === 'estimated' && '⚠ Estimated'}
+                            </div>
+                        </div>
+
+                        <div className="flex items-baseline gap-2">
+                            <span className="text-3xl font-bold text-gray-900">
+                                {formatCurrency(smartRentEstimate.estimatedRent)}
+                            </span>
+                            <span className="text-gray-500">/month</span>
+                        </div>
+
+                        <p className="mt-2 text-sm text-gray-600">{smartRentEstimate.displayNote}</p>
+
+                        {smartRentEstimate.variancePercent !== null && (
+                            <div className={`mt-3 flex items-center gap-2 text-sm ${smartRentEstimate.variancePercent > 20 ? 'text-orange-600' : smartRentEstimate.variancePercent > 10 ? 'text-yellow-600' : 'text-green-600'}`}>
+                                <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                </svg>
+                                <span>Variance between sources: {smartRentEstimate.variancePercent}%</span>
+                            </div>
+                        )}
+
+                        {smartRentEstimate.showBothEstimates && (
+                            <div className="mt-4 grid grid-cols-2 gap-4">
+                                {smartRentEstimate.sources.zillow && (
+                                    <div className="bg-blue-50 rounded-lg p-3">
+                                        <div className="flex items-center gap-2">
+                                            <span className="inline-flex items-center rounded-full bg-blue-100 px-2 py-0.5 text-xs font-medium text-blue-700">Zillow</span>
+                                        </div>
+                                        <p className="mt-1 text-lg font-semibold text-blue-900">{formatCurrency(smartRentEstimate.sources.zillow)}</p>
+                                    </div>
+                                )}
+                                {smartRentEstimate.sources.rentcast && (
+                                    <div className="bg-green-50 rounded-lg p-3">
+                                        <div className="flex items-center gap-2">
+                                            <span className="inline-flex items-center rounded-full bg-green-100 px-2 py-0.5 text-xs font-medium text-green-700">RentCast</span>
+                                        </div>
+                                        <p className="mt-1 text-lg font-semibold text-green-900">{formatCurrency(smartRentEstimate.sources.rentcast)}</p>
+                                    </div>
+                                )}
+                            </div>
+                        )}
+
+                        {smartRentEstimate.showWarning && smartRentEstimate.confidence === 'estimated' && (
+                            <div className="mt-4 bg-amber-50 border border-amber-200 rounded-lg p-3">
+                                <div className="flex items-start gap-2">
+                                    <svg className="h-5 w-5 text-amber-500 mt-0.5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                                    </svg>
+                                    <div>
+                                        <p className="text-sm font-medium text-amber-800">No Market Data Available</p>
+                                        <p className="text-xs text-amber-700 mt-1">
+                                            This estimate is calculated using the 0.7% rule (monthly rent = 0.7% of purchase price).
+                                            Consider getting a professional rent analysis for more accurate projections.
+                                        </p>
+                                    </div>
+                                </div>
+                            </div>
+                        )}
+                    </div>
+                </div>
+            )}
 
             {/* KPI Cards */}
             <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4">

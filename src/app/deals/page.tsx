@@ -1,14 +1,21 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import dynamic from 'next/dynamic';
 import { Deal, DealStatus } from '@/types/deals';
 import { formatCurrency } from '@/lib/services/underwriting';
-import { MoreVertical, Search, FileText, ArrowRight, Download } from 'lucide-react';
+import { MoreVertical, Search, FileText, ArrowRight, Download, ChevronLeft, ChevronRight } from 'lucide-react';
 
 const DealMap = dynamic(() => import('@/components/deals/DealMap'), { ssr: false });
+
+interface PaginationInfo {
+    page: number;
+    limit: number;
+    total: number;
+    totalPages: number;
+}
 
 interface QuickActionMenuProps {
     deal: Deal;
@@ -181,27 +188,75 @@ function QuickActionMenu({ deal, onStatusChange, onActionComplete }: QuickAction
 
 export default function DealsPage() {
     const router = useRouter();
+    const searchParams = useSearchParams();
     const [deals, setDeals] = useState<Deal[]>([]);
     const [loading, setLoading] = useState(true);
     const [viewMode, setViewMode] = useState<'list' | 'map'>('list');
     const [toast, setToast] = useState<string | null>(null);
     const [selectedDeals, setSelectedDeals] = useState<Set<string>>(new Set());
+    const [pagination, setPagination] = useState<PaginationInfo>({
+        page: 1,
+        limit: 20,
+        total: 0,
+        totalPages: 0
+    });
+    const [itemsPerPage, setItemsPerPage] = useState(20);
+
+    const fetchDeals = useCallback(async (page: number, limit: number) => {
+        setLoading(true);
+        try {
+            const res = await fetch(`/api/deals?page=${page}&limit=${limit}`);
+            const data = await res.json();
+            setDeals(data.deals || []);
+            if (data.pagination) {
+                setPagination(data.pagination);
+            }
+        } catch (error) {
+            console.error('Failed to fetch deals:', error);
+        } finally {
+            setLoading(false);
+        }
+    }, []);
 
     useEffect(() => {
-        async function fetchDeals() {
-            try {
-                const res = await fetch('/api/deals');
-                const data = await res.json();
-                setDeals(data.deals || []);
-            } catch (error) {
-                console.error('Failed to fetch deals:', error);
-            } finally {
-                setLoading(false);
-            }
-        }
+        const page = parseInt(searchParams.get('page') || '1');
+        const limit = parseInt(searchParams.get('limit') || '20');
+        setItemsPerPage(limit);
+        fetchDeals(page, limit);
+    }, [searchParams, fetchDeals]);
 
-        fetchDeals();
-    }, []);
+    const handlePageChange = (newPage: number) => {
+        const params = new URLSearchParams(searchParams.toString());
+        params.set('page', newPage.toString());
+        params.set('limit', itemsPerPage.toString());
+        router.push(`/deals?${params.toString()}`);
+    };
+
+    const handleItemsPerPageChange = (newLimit: number) => {
+        setItemsPerPage(newLimit);
+        const params = new URLSearchParams(searchParams.toString());
+        params.set('page', '1'); // Reset to first page
+        params.set('limit', newLimit.toString());
+        router.push(`/deals?${params.toString()}`);
+    };
+
+    const getPageNumbers = () => {
+        const pages: (number | string)[] = [];
+        const { page, totalPages } = pagination;
+
+        if (totalPages <= 7) {
+            for (let i = 1; i <= totalPages; i++) pages.push(i);
+        } else {
+            pages.push(1);
+            if (page > 3) pages.push('...');
+            for (let i = Math.max(2, page - 1); i <= Math.min(totalPages - 1, page + 1); i++) {
+                pages.push(i);
+            }
+            if (page < totalPages - 2) pages.push('...');
+            pages.push(totalPages);
+        }
+        return pages;
+    };
 
     useEffect(() => {
         if (toast) {
@@ -314,77 +369,140 @@ export default function DealsPage() {
                 ) : viewMode === 'map' ? (
                     <DealMap deals={deals} />
                 ) : (
-                    <div className="grid grid-cols-1 gap-4 sm:gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-                        {deals.map((deal) => (
-                            <div key={deal.id} className="relative group">
-                                {/* Selection checkbox */}
-                                <div
-                                    onClick={(e) => toggleDealSelection(deal.id, e)}
-                                    className={`absolute top-2 left-2 z-10 w-6 h-6 rounded-md border-2 cursor-pointer transition-all ${selectedDeals.has(deal.id)
-                                        ? 'bg-brand-primary border-brand-primary'
-                                        : 'bg-white/90 border-gray-300 opacity-0 group-hover:opacity-100'
-                                        }`}
-                                >
-                                    {selectedDeals.has(deal.id) && (
-                                        <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
-                                        </svg>
-                                    )}
-                                </div>
-
-                                {/* Quick actions menu */}
-                                <div className="absolute top-2 right-12 z-10">
-                                    <QuickActionMenu
-                                        deal={deal}
-                                        onStatusChange={handleStatusChange}
-                                        onActionComplete={setToast}
-                                    />
-                                </div>
-
-                                <Link href={`/deals/${deal.id}`} className="block">
-                                    <div className="bg-white overflow-hidden shadow rounded-lg hover:shadow-md transition-shadow">
-                                        <div className="h-48 bg-gray-200 relative">
-                                            {deal.photos && deal.photos.length > 0 ? (
-                                                <img src={deal.photos[0]} alt={deal.address_line1} className="w-full h-full object-cover" />
-                                            ) : (
-                                                <div className="flex items-center justify-center h-full text-gray-400">
-                                                    No Image
-                                                </div>
-                                            )}
-                                            <div className="absolute top-2 right-2">
-                                                <span className={`inline-flex items-center rounded-full px-2 py-1 text-xs font-medium ${deal.status === 'new' ? 'bg-blue-100 text-blue-800' :
-                                                    deal.status === 'analyzing' ? 'bg-yellow-100 text-yellow-800' :
-                                                        deal.status === 'saved' ? 'bg-green-100 text-green-800' :
-                                                            deal.status === 'offered' ? 'bg-purple-100 text-purple-800' :
-                                                                deal.status === 'under_contract' ? 'bg-orange-100 text-orange-800' :
-                                                                    deal.status === 'closed' ? 'bg-brand-ai-soft text-brand-ai-strong' :
-                                                                        'bg-gray-100 text-gray-800'
-                                                    }`}>
-                                                    {deal.status.replace('_', ' ').toUpperCase()}
-                                                </span>
-                                            </div>
-                                        </div>
-                                        <div className="px-4 py-4">
-                                            <h3 className="text-lg font-medium text-gray-900 group-hover:text-blue-600 truncate">
-                                                {deal.address_line1}
-                                            </h3>
-                                            <p className="text-sm text-gray-500 truncate">
-                                                {deal.city}, {deal.state} {deal.zip}
-                                            </p>
-                                            <div className="mt-4 flex justify-between items-center">
-                                                <span className="text-xl font-bold text-gray-900">
-                                                    {formatCurrency(deal.list_price)}
-                                                </span>
-                                                <div className="text-sm text-gray-500">
-                                                    {deal.beds}bd {deal.baths}ba {deal.sqft?.toLocaleString()}sqft
-                                                </div>
-                                            </div>
-                                        </div>
+                    <>
+                        <div className="grid grid-cols-1 gap-4 sm:gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+                            {deals.map((deal) => (
+                                <div key={deal.id} className="relative group">
+                                    {/* Selection checkbox */}
+                                    <div
+                                        onClick={(e) => toggleDealSelection(deal.id, e)}
+                                        className={`absolute top-2 left-2 z-10 w-6 h-6 rounded-md border-2 cursor-pointer transition-all ${selectedDeals.has(deal.id)
+                                            ? 'bg-brand-primary border-brand-primary'
+                                            : 'bg-white/90 border-gray-300 opacity-0 group-hover:opacity-100'
+                                            }`}
+                                    >
+                                        {selectedDeals.has(deal.id) && (
+                                            <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
+                                            </svg>
+                                        )}
                                     </div>
-                                </Link>
+
+                                    {/* Quick actions menu */}
+                                    <div className="absolute top-2 right-12 z-10">
+                                        <QuickActionMenu
+                                            deal={deal}
+                                            onStatusChange={handleStatusChange}
+                                            onActionComplete={setToast}
+                                        />
+                                    </div>
+
+                                    <Link href={`/deals/${deal.id}`} className="block">
+                                        <div className="bg-white overflow-hidden shadow rounded-lg hover:shadow-md transition-shadow">
+                                            <div className="h-48 bg-gray-200 relative">
+                                                {deal.photos && deal.photos.length > 0 ? (
+                                                    <img src={deal.photos[0]} alt={deal.address_line1} className="w-full h-full object-cover" />
+                                                ) : (
+                                                    <div className="flex items-center justify-center h-full text-gray-400">
+                                                        No Image
+                                                    </div>
+                                                )}
+                                                <div className="absolute top-2 right-2">
+                                                    <span className={`inline-flex items-center rounded-full px-2 py-1 text-xs font-medium ${deal.status === 'new' ? 'bg-blue-100 text-blue-800' :
+                                                        deal.status === 'analyzing' ? 'bg-yellow-100 text-yellow-800' :
+                                                            deal.status === 'saved' ? 'bg-green-100 text-green-800' :
+                                                                deal.status === 'offered' ? 'bg-purple-100 text-purple-800' :
+                                                                    deal.status === 'under_contract' ? 'bg-orange-100 text-orange-800' :
+                                                                        deal.status === 'closed' ? 'bg-brand-ai-soft text-brand-ai-strong' :
+                                                                            'bg-gray-100 text-gray-800'
+                                                        }`}>
+                                                        {deal.status.replace('_', ' ').toUpperCase()}
+                                                    </span>
+                                                </div>
+                                            </div>
+                                            <div className="px-4 py-4">
+                                                <h3 className="text-lg font-medium text-gray-900 group-hover:text-blue-600 truncate">
+                                                    {deal.address_line1}
+                                                </h3>
+                                                <p className="text-sm text-gray-500 truncate">
+                                                    {deal.city}, {deal.state} {deal.zip}
+                                                </p>
+                                                <div className="mt-4 flex justify-between items-center">
+                                                    <span className="text-xl font-bold text-gray-900">
+                                                        {formatCurrency(deal.list_price)}
+                                                    </span>
+                                                    <div className="text-sm text-gray-500">
+                                                        {deal.beds}bd {deal.baths}ba {deal.sqft?.toLocaleString()}sqft
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </Link>
+                                </div>
+                            ))}
+                        </div>
+
+                        {/* Pagination UI */}
+                        {pagination.totalPages > 0 && (
+                            <div className="mt-8 bg-white rounded-lg shadow px-4 py-3 flex flex-col sm:flex-row items-center justify-between gap-4">
+                                <div className="flex items-center gap-4">
+                                    <span className="text-sm text-gray-700">
+                                        Showing <span className="font-medium">{((pagination.page - 1) * pagination.limit) + 1}</span> to{' '}
+                                        <span className="font-medium">{Math.min(pagination.page * pagination.limit, pagination.total)}</span> of{' '}
+                                        <span className="font-medium">{pagination.total}</span> deals
+                                    </span>
+                                    <div className="flex items-center gap-2">
+                                        <label htmlFor="perPage" className="text-sm text-gray-600">Per page:</label>
+                                        <select
+                                            id="perPage"
+                                            value={itemsPerPage}
+                                            onChange={(e) => handleItemsPerPageChange(Number(e.target.value))}
+                                            className="rounded-md border-gray-300 text-sm focus:ring-brand-primary focus:border-brand-primary"
+                                        >
+                                            <option value={10}>10</option>
+                                            <option value={20}>20</option>
+                                            <option value={50}>50</option>
+                                        </select>
+                                    </div>
+                                </div>
+
+                                <div className="flex items-center gap-1">
+                                    <button
+                                        onClick={() => handlePageChange(pagination.page - 1)}
+                                        disabled={pagination.page === 1}
+                                        className="p-2 rounded-md hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed"
+                                    >
+                                        <ChevronLeft className="w-5 h-5" />
+                                    </button>
+
+                                    {getPageNumbers().map((pageNum, idx) => (
+                                        pageNum === '...' ? (
+                                            <span key={`ellipsis-${idx}`} className="px-3 py-1 text-gray-500">...</span>
+                                        ) : (
+                                            <button
+                                                key={pageNum}
+                                                onClick={() => handlePageChange(pageNum as number)}
+                                                className={`px-3 py-1 rounded-md text-sm font-medium ${pagination.page === pageNum
+                                                    ? 'bg-brand-primary text-white'
+                                                    : 'text-gray-700 hover:bg-gray-100'
+                                                    }`}
+                                            >
+                                                {pageNum}
+                                            </button>
+                                        )
+                                    ))}
+
+                                    <button
+                                        onClick={() => handlePageChange(pagination.page + 1)}
+                                        disabled={pagination.page === pagination.totalPages}
+                                        className="p-2 rounded-md hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed"
+                                    >
+                                        <ChevronRight className="w-5 h-5" />
+                                    </button>
+                                </div>
                             </div>
-                        ))}
-                    </div>
+                        )}
+                    </>
                 )}
             </div>
         </div>

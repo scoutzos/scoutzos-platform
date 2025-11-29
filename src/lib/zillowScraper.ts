@@ -137,17 +137,52 @@ export async function searchProperties(
     const hdpData = prop.hdpData as Record<string, unknown> | undefined;
     const homeInfo = hdpData?.homeInfo as Record<string, unknown> | undefined;
 
-    // Extract photos from various possible locations
+    // Extract photos from various possible locations - comprehensive multi-photo extraction
     let photos: string[] = [];
-    if (Array.isArray(prop.photos)) {
-      photos = prop.photos.map((p: unknown): string => typeof p === 'string' ? p : (p as Record<string, unknown>)?.url as string || (p as Record<string, unknown>)?.href as string || '').filter(Boolean);
-    } else if (Array.isArray(prop.carouselPhotos)) {
-      photos = (prop.carouselPhotos as Record<string, unknown>[]).map(p => (p.url || p.href || '') as string).filter(Boolean);
-    } else if (prop.imgSrc) {
-      photos = [prop.imgSrc as string];
-    } else if (prop.image) {
-      photos = [prop.image as string];
+
+    // Try multiple possible photo array fields
+    const photoArrayFields = ['photos', 'carouselPhotos', 'hugePhotos', 'images', 'responsivePhotos', 'photoGallery'];
+    for (const field of photoArrayFields) {
+      if (Array.isArray(prop[field]) && photos.length === 0) {
+        const arr = prop[field] as unknown[];
+        photos = arr.map((p: unknown): string => {
+          if (typeof p === 'string') return p;
+          const pObj = p as Record<string, unknown>;
+          // Try various nested URL patterns
+          return (pObj?.url || pObj?.href || pObj?.mixedSources?.jpeg?.[0]?.url ||
+                  pObj?.hiResLink || pObj?.fullUrl || pObj?.webp || '') as string;
+        }).filter(Boolean);
+      }
     }
+
+    // Try hdpData photo arrays
+    if (photos.length === 0 && hdpData) {
+      const hdpPhotos = (hdpData.homeInfo as Record<string, unknown>)?.photos || hdpData.photos;
+      if (Array.isArray(hdpPhotos)) {
+        photos = (hdpPhotos as unknown[]).map((p: unknown): string => {
+          if (typeof p === 'string') return p;
+          const pObj = p as Record<string, unknown>;
+          return (pObj?.url || pObj?.href || pObj?.mixedSources?.jpeg?.[0]?.url || '') as string;
+        }).filter(Boolean);
+      }
+    }
+
+    // Try single image fields as fallback
+    if (photos.length === 0) {
+      const singleImageFields = ['imgSrc', 'image', 'hiResImageLink', 'thumbnailUrl', 'primaryPhoto'];
+      for (const field of singleImageFields) {
+        if (prop[field] && typeof prop[field] === 'string') {
+          photos.push(prop[field] as string);
+        } else if (prop[field] && typeof prop[field] === 'object') {
+          const imgObj = prop[field] as Record<string, unknown>;
+          const url = (imgObj?.url || imgObj?.href || imgObj?.mixedSources?.jpeg?.[0]?.url) as string;
+          if (url) photos.push(url);
+        }
+      }
+    }
+
+    // Deduplicate photos
+    photos = [...new Set(photos)];
 
     return {
       zpid: (prop.zpid || prop.id || prop.propertyId || homeInfo?.zpid || 0) as number,
@@ -226,6 +261,20 @@ export async function getPropertyDetails(zpid: number): Promise<Partial<ZillowPr
     // Extract year built from various possible locations
     const yearBuilt = data.yearBuilt || data.resoFacts?.yearBuilt || data.buildingYearBuilt || null;
 
+    // Extract photos from property details
+    let photos: string[] = [];
+    const photoArrayFields = ['photos', 'responsivePhotos', 'photoGallery', 'hugePhotos'];
+    for (const field of photoArrayFields) {
+      if (Array.isArray(data[field]) && photos.length === 0) {
+        photos = data[field].map((p: unknown): string => {
+          if (typeof p === 'string') return p;
+          const pObj = p as Record<string, unknown>;
+          return (pObj?.url || pObj?.href || pObj?.mixedSources?.jpeg?.[0]?.url ||
+                  pObj?.hiResLink || pObj?.fullUrl || '') as string;
+        }).filter(Boolean);
+      }
+    }
+
     return {
       yearBuilt: yearBuilt as number | null,
       // Also grab any other useful details that might be missing from search
@@ -234,6 +283,7 @@ export async function getPropertyDetails(zpid: number): Promise<Partial<ZillowPr
       livingArea: data.livingArea || data.resoFacts?.livingArea,
       lotAreaValue: data.lotSize || data.resoFacts?.lotSize,
       description: data.description,
+      photos: photos.length > 0 ? photos : undefined,
     };
   } catch (error) {
     console.warn(`[Zillow API] Error fetching property details for zpid ${zpid}:`, error);
@@ -251,9 +301,21 @@ export async function enrichPropertiesWithDetails(
   const enrichedProps: ZillowProperty[] = [];
 
   for (const prop of props) {
-    if (prop.zpid && !prop.yearBuilt) {
+    // Enrich if missing yearBuilt OR if we only have 1 or no photos
+    if (prop.zpid && (!prop.yearBuilt || prop.photos.length <= 1)) {
       const details = await getPropertyDetails(prop.zpid);
       if (details) {
+        // Merge photos: prefer details photos if more, otherwise merge uniquely
+        let mergedPhotos = prop.photos;
+        if (details.photos && details.photos.length > 0) {
+          if (details.photos.length > prop.photos.length) {
+            mergedPhotos = details.photos;
+          } else {
+            // Merge and deduplicate
+            mergedPhotos = [...new Set([...prop.photos, ...details.photos])];
+          }
+        }
+
         enrichedProps.push({
           ...prop,
           yearBuilt: details.yearBuilt ?? prop.yearBuilt,
@@ -262,6 +324,7 @@ export async function enrichPropertiesWithDetails(
           livingArea: details.livingArea ?? prop.livingArea,
           lotAreaValue: details.lotAreaValue ?? prop.lotAreaValue,
           description: details.description ?? prop.description,
+          photos: mergedPhotos,
         });
         continue;
       }

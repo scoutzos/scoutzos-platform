@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { supabaseAdmin } from '@/lib/supabase/admin';
 import { matchDealToAllBuyBoxes } from '@/lib/services/matching';
-
-const TENANT_ID = 'a0000000-0000-0000-0000-000000000001';
 
 export async function POST(
     request: NextRequest,
@@ -10,7 +9,18 @@ export async function POST(
     try {
         const { id: dealId } = await params;
 
-        const matches = await matchDealToAllBuyBoxes(dealId, TENANT_ID);
+        // Get the deal to find its tenant_id
+        const { data: deal, error: dealError } = await supabaseAdmin
+            .from('deals')
+            .select('tenant_id')
+            .eq('id', dealId)
+            .single();
+
+        if (dealError || !deal) {
+            return NextResponse.json({ error: 'Deal not found' }, { status: 404 });
+        }
+
+        const matches = await matchDealToAllBuyBoxes(dealId, deal.tenant_id);
         const matchCount = matches.filter(m => m.is_match).length;
 
         // Log high-score matches for email alerts

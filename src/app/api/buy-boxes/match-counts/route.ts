@@ -1,8 +1,6 @@
 import { NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase/admin';
 
-const TENANT_ID = 'a0000000-0000-0000-0000-000000000001';
-
 export async function GET() {
     try {
         // Get match counts grouped by buy_box_id

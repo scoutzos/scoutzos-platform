@@ -161,3 +161,156 @@ export async function getRentEstimateForDeal(deal: {
 
   return estimate?.rent || null;
 }
+
+// ============================================================
+// Smart Rent Estimate Logic with Variance Handling
+// ============================================================
+
+import { RentConfidence } from '@/types/deals';
+
+export interface SmartRentEstimate {
+  estimatedRent: number;
+  confidence: RentConfidence;
+  variancePercent: number | null;
+  sources: {
+    zillow: number | null;
+    rentcast: number | null;
+    calculated: number | null;
+  };
+  displayNote: string;
+  showWarning: boolean;
+  showBothEstimates: boolean;
+}
+
+/**
+ * Calculate smart rent estimate based on multiple sources
+ * - If variance < 10%: Use average (high confidence)
+ * - If variance 10-20%: Use average with warning (medium confidence)
+ * - If variance > 20%: Show both separately (low confidence)
+ * - If single source: Use that source (medium confidence)
+ * - If neither: Use 0.7% rule (estimated)
+ */
+export function calculateSmartRentEstimate(
+  zillowEstimate: number | null | undefined,
+  rentcastEstimate: number | null | undefined,
+  listPrice: number
+): SmartRentEstimate {
+  const zillow = zillowEstimate && zillowEstimate > 0 ? zillowEstimate : null;
+  const rentcast = rentcastEstimate && rentcastEstimate > 0 ? rentcastEstimate : null;
+  const calculated = listPrice > 0 ? Math.round(listPrice * 0.007) : null;
+
+  // Case 1: Both estimates available
+  if (zillow && rentcast) {
+    const avg = Math.round((zillow + rentcast) / 2);
+    const diff = Math.abs(zillow - rentcast);
+    const variancePercent = Math.round((diff / avg) * 100);
+
+    if (variancePercent < 10) {
+      // Low variance - high confidence
+      return {
+        estimatedRent: avg,
+        confidence: 'high',
+        variancePercent,
+        sources: { zillow, rentcast, calculated },
+        displayNote: `Average of Zillow ($${zillow.toLocaleString()}) and RentCast ($${rentcast.toLocaleString()})`,
+        showWarning: false,
+        showBothEstimates: false,
+      };
+    } else if (variancePercent <= 20) {
+      // Medium variance - show warning
+      return {
+        estimatedRent: avg,
+        confidence: 'medium',
+        variancePercent,
+        sources: { zillow, rentcast, calculated },
+        displayNote: `Average of Zillow ($${zillow.toLocaleString()}) and RentCast ($${rentcast.toLocaleString()}) - ${variancePercent}% variance`,
+        showWarning: true,
+        showBothEstimates: false,
+      };
+    } else {
+      // High variance - show both separately
+      return {
+        estimatedRent: avg, // Still use average for calculations
+        confidence: 'low',
+        variancePercent,
+        sources: { zillow, rentcast, calculated },
+        displayNote: `High variance (${variancePercent}%) - review both estimates`,
+        showWarning: true,
+        showBothEstimates: true,
+      };
+    }
+  }
+
+  // Case 2: Only Zillow available
+  if (zillow && !rentcast) {
+    return {
+      estimatedRent: zillow,
+      confidence: 'medium',
+      variancePercent: null,
+      sources: { zillow, rentcast: null, calculated },
+      displayNote: 'Zillow estimate (single source)',
+      showWarning: false,
+      showBothEstimates: false,
+    };
+  }
+
+  // Case 3: Only RentCast available
+  if (!zillow && rentcast) {
+    return {
+      estimatedRent: rentcast,
+      confidence: 'medium',
+      variancePercent: null,
+      sources: { zillow: null, rentcast, calculated },
+      displayNote: 'RentCast estimate (single source)',
+      showWarning: false,
+      showBothEstimates: false,
+    };
+  }
+
+  // Case 4: Neither available - use 0.7% rule
+  return {
+    estimatedRent: calculated || 0,
+    confidence: 'estimated',
+    variancePercent: null,
+    sources: { zillow: null, rentcast: null, calculated },
+    displayNote: 'Estimated (0.7% rule) - No market data available',
+    showWarning: true,
+    showBothEstimates: false,
+  };
+}
+
+/**
+ * Get confidence color for UI display
+ */
+export function getConfidenceColor(confidence: RentConfidence): string {
+  switch (confidence) {
+    case 'high':
+      return 'text-green-600';
+    case 'medium':
+      return 'text-yellow-600';
+    case 'low':
+      return 'text-orange-600';
+    case 'estimated':
+      return 'text-red-600';
+    default:
+      return 'text-gray-600';
+  }
+}
+
+/**
+ * Get confidence background color for UI display
+ */
+export function getConfidenceBgColor(confidence: RentConfidence): string {
+  switch (confidence) {
+    case 'high':
+      return 'bg-green-100';
+    case 'medium':
+      return 'bg-yellow-100';
+    case 'low':
+      return 'bg-orange-100';
+    case 'estimated':
+      return 'bg-red-100';
+    default:
+      return 'bg-gray-100';
+  }
+}

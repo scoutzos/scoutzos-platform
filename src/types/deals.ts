@@ -1,5 +1,7 @@
 export type DealStatus = 'new' | 'analyzing' | 'saved' | 'offered' | 'under_contract' | 'closed' | 'passed' | 'dead';
 
+export type RentConfidence = 'high' | 'medium' | 'low' | 'estimated';
+
 export interface Deal {
     id: string;
     tenant_id: string;
@@ -34,6 +36,8 @@ export interface Deal {
     estimated_rent?: number;
     zillow_rent_estimate?: number;
     rentcast_rent_estimate?: number;
+    rent_confidence?: RentConfidence;
+    rent_variance_percent?: number;
     latitude?: number;
     longitude?: number;
     status: DealStatus;
